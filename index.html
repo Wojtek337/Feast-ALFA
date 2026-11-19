@@ -1,0 +1,1650 @@
+<!doctype html><html lang="pl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Feast</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout concept: sticky top bar, content column on the left, friends rail on the right (drawer on phones).
+   Tokens are RGB triples so Tailwind can apply alpha to them. Single deliberate dark look. */
+:root{
+  --ink-950:7 11 22; --ink-900:12 18 34; --ink-800:19 27 48; --ink-700:30 40 68; --ink-600:46 59 96;
+  --txt:231 236 248; --muted:139 150 181;
+  --accent:34 211 238; --accent2:139 92 246;
+  --good:52 211 153; --warn:251 191 36; --bad:248 113 113;
+  color-scheme:dark;
+}
+body{
+  background-color:rgb(var(--ink-950));
+  background-image:radial-gradient(900px 520px at 88% -8%,rgb(var(--accent)/.10),transparent 62%),radial-gradient(760px 440px at -6% 8%,rgb(var(--accent2)/.10),transparent 62%);
+  background-attachment:fixed;
+  color:rgb(var(--txt));
+  font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:14px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:60;background:rgb(var(--ink-950))}
+*{scrollbar-width:thin;scrollbar-color:rgb(var(--ink-600)) transparent}
+*:focus-visible{outline:2px solid rgb(var(--accent));outline-offset:2px}
+button{font-family:inherit}
+.font-display{font-family:"Space Grotesk",Inter,system-ui,sans-serif}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;border-radius:.65rem;padding:.55rem 1rem;font-weight:600;font-size:.875rem;line-height:1.2;transition:filter .15s,background .15s,border-color .15s,color .15s;cursor:pointer;border:1px solid transparent;white-space:nowrap}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:rgb(var(--accent));color:#04101a}
+.btn-primary:hover:not(:disabled){filter:brightness(1.12)}
+.btn-soft{background:rgb(var(--ink-700));color:rgb(var(--txt))}
+.btn-soft:hover:not(:disabled){background:rgb(var(--ink-600))}
+.btn-outline{border-color:rgb(var(--ink-600));color:rgb(var(--txt));background:transparent}
+.btn-outline:hover:not(:disabled){border-color:rgb(var(--accent));color:rgb(var(--accent))}
+.btn-danger{background:rgb(var(--bad)/.14);color:rgb(var(--bad));border-color:rgb(var(--bad)/.3)}
+.btn-danger:hover:not(:disabled){background:rgb(var(--bad)/.24)}
+.btn-good{background:rgb(var(--good));color:#04130d}
+.btn-good:hover:not(:disabled){filter:brightness(1.1)}
+.btn-sm{padding:.4rem .7rem;font-size:.8rem;border-radius:.55rem}
+.input{width:100%;background:rgb(var(--ink-900));border:1px solid rgb(var(--ink-700));border-radius:.65rem;padding:.6rem .8rem;color:rgb(var(--txt));font-size:.875rem;font-family:inherit}
+.input:focus{outline:none;border-color:rgb(var(--accent));box-shadow:0 0 0 3px rgb(var(--accent)/.18)}
+.input::placeholder{color:rgb(var(--muted)/.7)}
+select.input{appearance:none;background-image:linear-gradient(45deg,transparent 50%,rgb(var(--muted)) 50%),linear-gradient(135deg,rgb(var(--muted)) 50%,transparent 50%);background-position:calc(100% - 18px) 55%,calc(100% - 13px) 55%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:2rem}
+.label{display:block;font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:rgb(var(--muted));margin-bottom:.35rem}
+.panel{background:rgb(var(--ink-900)/.92);border:1px solid rgb(var(--ink-700));border-radius:1rem}
+.chip{display:inline-flex;align-items:center;gap:.35rem;border-radius:999px;padding:.32rem .8rem;font-size:.8rem;font-weight:500;border:1px solid rgb(var(--ink-700));color:rgb(var(--muted));background:rgb(var(--ink-900));cursor:pointer;transition:all .15s;white-space:nowrap}
+.chip:hover{color:rgb(var(--txt));border-color:rgb(var(--ink-600))}
+.chip[aria-pressed="true"]{background:rgb(var(--accent)/.14);border-color:rgb(var(--accent)/.6);color:rgb(var(--accent))}
+.tag{display:inline-block;border-radius:.4rem;padding:.12rem .45rem;font-size:.7rem;font-weight:600;background:rgb(var(--ink-700));color:rgb(var(--muted))}
+.gcard{background:rgb(var(--ink-900));border:1px solid rgb(var(--ink-700));border-radius:.9rem;overflow:hidden;transition:transform .2s,box-shadow .2s,border-color .2s;cursor:pointer;text-align:left;display:flex;flex-direction:column}
+.gcard:hover,.gcard:focus-visible{transform:translateY(-4px);border-color:rgb(var(--accent)/.55);box-shadow:0 18px 44px -18px rgb(var(--accent)/.55)}
+.gcard .quick{opacity:0;transform:translateY(6px);transition:all .2s}
+.gcard:hover .quick,.gcard:focus-within .quick{opacity:1;transform:none}
+@media (hover:none){.gcard .quick{opacity:1;transform:none}}
+.page{animation:fadeUp .28s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes pulseDot{0%,100%{opacity:1}50%{opacity:.35}}
+.pulse{animation:pulseDot 1.4s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin .9s linear infinite}
+.bar{height:6px;border-radius:999px;background:rgb(var(--ink-700));overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,rgb(var(--accent)),rgb(var(--accent2)));transition:width .4s ease}
+.hscroll{overflow-x:auto;scrollbar-width:none}
+.hscroll::-webkit-scrollbar{display:none}
+.tnum{font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>
+tailwind.config={theme:{extend:{colors:{
+  ink:{950:'rgb(var(--ink-950)/<alpha-value>)',900:'rgb(var(--ink-900)/<alpha-value>)',800:'rgb(var(--ink-800)/<alpha-value>)',700:'rgb(var(--ink-700)/<alpha-value>)',600:'rgb(var(--ink-600)/<alpha-value>)'},
+  txt:'rgb(var(--txt)/<alpha-value>)',muted:'rgb(var(--muted)/<alpha-value>)',
+  accent:'rgb(var(--accent)/<alpha-value>)',accent2:'rgb(var(--accent2)/<alpha-value>)',
+  good:'rgb(var(--good)/<alpha-value>)',warn:'rgb(var(--warn)/<alpha-value>)',bad:'rgb(var(--bad)/<alpha-value>)'
+},fontFamily:{display:['"Space Grotesk"','Inter','system-ui','sans-serif']}}}};
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/lucide-react@0.263.1/dist/umd/lucide-react.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+</head><body><div id="root"></div>
+
+<script type="text/babel">
+const {useState,useEffect,useMemo,useRef,useCallback,useContext,createContext}=React;
+
+/* ============================== stałe i pomocnicy ============================== */
+const CEO_EMAIL='wojtekdabrowski101@gmail.com';
+const KEY='feast_state_v1';
+const SKEY='feast_session_v1';
+const GENRES=['Akcja','RPG','FPS','Indie','Przygodowe','Survival'];
+const ACCENTS={
+  cyan:{a:'34 211 238',b:'139 92 246',label:'Cyjan'},
+  violet:{a:'167 139 250',b:'34 211 238',label:'Fiolet'},
+  emerald:{a:'52 211 153',b:'56 189 248',label:'Szmaragd'},
+  amber:{a:'251 191 36',b:'251 113 133',label:'Bursztyn'},
+  rose:{a:'251 113 133',b:'167 139 250',label:'Róż'}
+};
+const STATUS={
+  online:{label:'Online',dot:'#34d399'},
+  ingame:{label:'W grze',dot:'rgb(var(--accent))'},
+  away:{label:'Zaraz wracam',dot:'#fbbf24'},
+  offline:{label:'Offline',dot:'#64748b'}
+};
+const AV_GRADS=[['#22d3ee','#8b5cf6'],['#f472b6','#8b5cf6'],['#34d399','#0ea5e9'],['#fbbf24','#f43f5e'],['#a78bfa','#22d3ee'],['#fb7185','#f59e0b'],['#38bdf8','#34d399'],['#e879f9','#6366f1']];
+const AV_ICONS=['Ghost','Rocket','Sword','Skull','Cat','Dog','Gamepad2','Crown','Flame','Bot','Gem','Zap'];
+const ACH=[
+  {h:0.1,t:'Pierwsze kroki',d:'Uruchom grę po raz pierwszy'},
+  {h:2,t:'Rozgrzewka',d:'Spędź w grze 2 godziny'},
+  {h:10,t:'Wciągnięty',d:'Zagraj łącznie 10 godzin'},
+  {h:25,t:'Weteran',d:'Zagraj łącznie 25 godzin'},
+  {h:50,t:'Mistrz',d:'Zagraj łącznie 50 godzin'},
+  {h:100,t:'Legenda',d:'Zagraj łącznie 100 godzin'}
+];
+const BOT_LINES=[
+  'Siema! Właśnie odpalam {game}, dołączysz?',
+  'Haha, dobre.',
+  'Mam teraz maraton w {game}, ale daj znać wieczorem.',
+  'Zajrzyj do sklepu, widziałem fajną promocję.',
+  'Daj mi 5 minut, kończę misję.',
+  'Też o tym myślałem!',
+  'Polecam {game}, ogrywam od tygodnia.',
+  'Wbijaj na lobby, zrobimy drużynę.'
+];
+const LR=window.LucideReact||window.lucideReact||{};
+const uid=()=>Math.random().toString(36).slice(2,10);
+const cx=(...a)=>a.filter(Boolean).join(' ');
+const hashPw=s=>{let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return 'h'+h.toString(36)+s.length;};
+const numHash=s=>{let h=0;for(let i=0;i<s.length;i++)h=(h*31+s.charCodeAt(i))>>>0;return h;};
+const eff=g=>Math.round(g.price*(100-(g.discount||0)))/100;
+const isFree=g=>eff(g)===0;
+const money=n=>n===0?'Darmowa':n.toFixed(2).replace('.',',')+' zł';
+const moneyPlain=n=>n.toFixed(2).replace('.',',')+' zł';
+const fmtNum=n=>Number(n).toLocaleString('pl-PL');
+const fmtH=h=>h.toFixed(1).replace('.',',')+' godz.';
+const fmtDate=ts=>new Date(ts).toLocaleDateString('pl-PL',{day:'2-digit',month:'long',year:'numeric'});
+const fmtTime=ts=>new Date(ts).toLocaleTimeString('pl-PL',{hour:'2-digit',minute:'2-digit'});
+const chatKey=(a,b)=>[a,b].sort().join('|');
+const isCEO=u=>!!u&&!u.bot&&u.email.toLowerCase()===CEO_EMAIL;
+const dispStatus=u=>u.playing?'ingame':u.status;
+const sizeOf=g=>(g.genres.includes('Indie')?1+numHash(g.id)%6:25+numHash(g.id)%95)+' GB';
+const ratingLabel=r=>r==null?'Brak ocen':r>=95?'Przytłaczająco pozytywne':r>=80?'Bardzo pozytywne':r>=70?'W większości pozytywne':'Mieszane';
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const parseNum=v=>{const n=parseFloat(String(v).replace(',','.'));return isFinite(n)?n:NaN;};
+
+/* ============================== okładki generowane ============================== */
+const artCache=new Map();
+const esc=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
+function wrapTitle(t){
+  const w=t.toUpperCase().split(/\s+/);const lines=[];let cur='';
+  w.forEach(x=>{if(cur&&(cur+' '+x).length>13){lines.push(cur);cur=x;}else cur=(cur+' '+x).trim();});
+  if(cur)lines.push(cur);
+  return lines.slice(0,3);
+}
+function coverArt(g){
+  const key=g.id+'|'+g.title+'|'+(g.art||'');
+  if(artCache.has(key))return artCache.get(key);
+  const h=numHash(g.title);
+  const pair=g.art||['hsl('+(h%360)+',70%,38%)','hsl('+((h+70)%360)+',75%,20%)'];
+  const lines=wrapTitle(g.title);
+  const fs=lines.length>2?26:lines.some(l=>l.length>11)?30:36;
+  const shapes=[0,1,2,3].map(i=>{const s=numHash(g.title+i);return "<circle cx='"+(s%460)+"' cy='"+((s>>3)%215)+"' r='"+(40+(s>>5)%90)+"' fill='white' fill-opacity='"+(0.05+(i%3)*0.04)+"'/>";}).join('');
+  const txt=lines.map((l,i)=>"<text x='24' y='"+(215-26-(lines.length-1-i)*(fs+4))+"' font-family='Space Grotesk,Inter,Arial,sans-serif' font-weight='800' font-size='"+fs+"' fill='white' letter-spacing='1'>"+esc(l)+"</text>").join('');
+  const svg="<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 460 215'><defs><linearGradient id='a' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='"+pair[0]+"'/><stop offset='1' stop-color='"+pair[1]+"'/></linearGradient><linearGradient id='b' x1='0' y1='0' x2='0' y2='1'><stop offset='.4' stop-color='black' stop-opacity='0'/><stop offset='1' stop-color='black' stop-opacity='.55'/></linearGradient></defs><rect width='460' height='215' fill='url(#a)'/>"+shapes+"<rect width='460' height='215' fill='url(#b)'/>"+txt+"</svg>";
+  const uri='url("data:image/svg+xml;utf8,'+encodeURIComponent(svg)+'")';
+  artCache.set(key,uri);
+  return uri;
+}
+
+/* ============================== dane startowe ============================== */
+const G=(id,title,dev,year,price,genres,rating,players,steam,art,desc)=>({id,title,dev,year,price,discount:0,genres,rating,players,steam,art,desc,cover:'',addedAt:Date.now()});
+function seedGames(){
+  return [
+    G('cs2','Counter-Strike 2','Valve',2023,0,['FPS','Akcja'],86,1500000,730,['#f59e0b','#1e293b'],'Kultowy taktyczny shooter drużynowy w nowym silniku Source 2. Dwie drużyny, jedna bomba i rundy, w których liczy się każda sekunda i każdy strzał.'),
+    G('cyberpunk','Cyberpunk 2077','CD PROJEKT RED',2020,199.99,['RPG','Akcja','Przygodowe'],87,95000,1091500,['#facc15','#be185d'],'Open-worldowe RPG akcji w mrocznym Night City. Jako najemnik V szukasz implantu dającego nieśmiertelność, a każda decyzja zostawia ślad w historii miasta.'),
+    G('witcher3','Wiedźmin 3: Dziki Gon','CD PROJEKT RED',2015,99.99,['RPG','Przygodowe','Akcja'],97,60000,292030,['#7f1d1d','#0f172a'],'Geralt z Rivii szuka Ciri w ogromnym, żywym świecie pełnym potworów i trudnych wyborów. Jedno z najwyżej ocenianych RPG w historii.'),
+    G('gta5','Grand Theft Auto V','Rockstar Games',2015,89.99,['Akcja','Przygodowe'],87,140000,271590,['#16a34a','#0f172a'],'Trzech bohaterów, jedno miasto Los Santos i napady, które wymykają się spod kontroli. Rozbudowana kampania fabularna oraz tryb online.'),
+    G('rdr2','Red Dead Redemption 2','Rockstar Games',2019,249.99,['Akcja','Przygodowe'],93,45000,1174180,['#b45309','#1c1917'],'Epicka opowieść o Arthurze Morganie i gangu Van der Lindego na schyłku Dzikiego Zachodu. Ogromny, niezwykle szczegółowy świat.'),
+    G('eldenring','Elden Ring','FromSoftware',2022,229.99,['RPG','Akcja'],92,90000,1245620,['#ca8a04','#1e1b4b'],'Mroczne action RPG osadzone w świecie stworzonym wspólnie z George\'em R.R. Martinem. Eksploruj Krainę Pomiędzy i pokonuj potężnych bossów.'),
+    G('terraria','Terraria','Re-Logic',2011,35.99,['Indie','Przygodowe','Survival'],97,60000,105600,['#22c55e','#0c4a6e'],'Kop, buduj, walcz i eksploruj proceduralnie generowane światy 2D. Setki przedmiotów, bossów i godzin zabawy, także w kooperacji.'),
+    G('rust','Rust','Facepunch Studios',2018,139.99,['Survival','Akcja'],86,150000,252490,['#c2410c','#292524'],'Brutalna gra o przetrwaniu na serwerach pełnych innych graczy. Zbieraj surowce, buduj bazę i broń jej przed rywalami.'),
+    G('apex','Apex Legends','Respawn Entertainment',2019,0,['FPS','Akcja'],80,200000,1172470,['#dc2626','#450a0a'],'Darmowy battle royale z unikalnymi legendami i szybką rozgrywką drużynową. O wygranej decydują ruch, umiejętności i współpraca.'),
+    G('bg3','Baldur\'s Gate 3','Larian Studios',2023,249.99,['RPG','Przygodowe'],96,110000,1086940,['#7c3aed','#0f172a'],'Turowe RPG w świecie Dungeons & Dragons. Zbierz drużynę, podejmuj wybory z realnymi konsekwencjami i stawiaj czoła mind flayerom.'),
+    G('palworld','Palworld','Pocketpair',2024,115.99,['Survival','Przygodowe','Akcja'],87,50000,1623730,['#0ea5e9','#134e4a'],'Łap stworzenia zwane Palami, każ im pracować w bazie albo walcz z ich pomocą. Survival z craftingiem w otwartym świecie.'),
+    G('geometrydash','Geometry Dash','RobTop Games',2014,9.99,['Indie','Akcja'],97,12000,322170,['#facc15','#1d4ed8'],'Rytmiczny platformer, w którym jeden błąd oznacza powrót na start. Skacz w rytm muzyki i twórz własne poziomy.'),
+    G('dota2','Dota 2','Valve',2013,0,['Akcja'],82,600000,570,['#b91c1c','#111827'],'Legendarna gra MOBA 5 na 5. Ponad stu bohaterów, głębokie decyzje taktyczne i turnieje z wielomilionowymi pulami nagród.'),
+    G('stardew','Stardew Valley','ConcernedApe',2016,49.99,['Indie','RPG','Przygodowe'],98,40000,413150,['#65a30d','#164e63'],'Odziedzicz farmę dziadka i zbuduj nowe życie: uprawiaj ziemię, poznawaj mieszkańców miasteczka i eksploruj kopalnie.'),
+    G('hollowknight','Hollow Knight','Team Cherry',2017,54.99,['Indie','Przygodowe','Akcja'],97,30000,367520,['#334155','#0b1020'],'Ręcznie rysowana metroidvania w zrujnowanym podziemnym królestwie Hallownest. Wymagające walki, sekrety i wspaniała muzyka.')
+  ];
+}
+const baseUser=o=>Object.assign({
+  id:'u_'+uid(),bot:false,bio:'',status:'online',playing:null,library:[],cart:[],friends:[],
+  privacy:{profile:'public',library:'public'},notif:{messages:true,friends:true,promos:true},
+  accent:'cyan',orders:[],read:{},createdAt:Date.now()
+},o);
+const mkEntry=(gameId,hours,source)=>({gameId,installed:hours>0,installing:false,progress:hours>0?100:0,hours:hours||0,acquired:Date.now()-864e5*(5+Math.floor(Math.random()*60)),source:source||'purchase'});
+const mkBot=(id,username,g,i,bio,status,playing,lib)=>baseUser({id,bot:true,email:id+'@feast.bot',username,pass:'',avatar:{k:'icon',g,i},bio,status,playing,library:lib.map(x=>mkEntry(x[0],x[1])),createdAt:Date.now()-864e5*120});
+function seedUsers(){
+  const bots=[
+    mkBot('b_kasia','Kasia_PL',0,'Cat','Wiedźmin zawsze na pierwszym miejscu. Szukam ekipy do coopa.','online',null,[['witcher3',212.4],['stardew',88.2],['bg3',64.5]]),
+    mkBot('b_neon','NeonFox',4,'Zap','Rankedy w CS2 i kawa o 3 w nocy.','online','cs2',[['cs2',1450.8],['apex',320.1],['rust',45.3]]),
+    mkBot('b_bartek','Bartek_Dev',2,'Bot','Programista w dzień, gracz w nocy. Wciągnął mnie Terraria.','away',null,[['terraria',156.7],['hollowknight',41.9],['cyberpunk',72.2]]),
+    mkBot('b_ola','Ola_Plays',1,'Ghost','Streamuję czasem, gram prawie zawsze.','offline',null,[['eldenring',134.6],['bg3',210.3],['palworld',58.1]]),
+    mkBot('b_raven','MrRaven',3,'Skull','Elden Ring, trzeci run. Nie pytajcie o Malenię.','online','eldenring',[['eldenring',402.9],['rdr2',120.4],['gta5',250.0]]),
+    mkBot('b_zuza','Zuza_Games',5,'Gem','Cozy gaming i speedruny Geometry Dash.','online',null,[['stardew',301.2],['geometrydash',77.7],['hollowknight',95.4]])
+  ];
+  const demo=baseUser({email:'demo@feast.app',username:'Gracz_Demo',pass:hashPw('demo123'),avatar:{k:'icon',g:2,i:'Gamepad2'},bio:'Testowe konto demonstracyjne.',
+    library:[mkEntry('terraria',24.5),mkEntry('stardew',8.3),mkEntry('apex',3.2,'free'),mkEntry('geometrydash',0)],
+    friends:['b_kasia','b_neon','b_zuza']});
+  bots.forEach(b=>{if(demo.friends.includes(b.id))b.friends.push(demo.id);});
+  return bots.concat([demo]);
+}
+function seedDb(){return {v:1,games:seedGames(),delisted:[],users:seedUsers(),chats:{}};}
+function loadDb(){
+  try{
+    const raw=localStorage.getItem(KEY);
+    if(raw){const d=JSON.parse(raw);if(d&&Array.isArray(d.games)&&Array.isArray(d.users)){d.delisted=d.delisted||[];d.chats=d.chats||{};return d;}}
+  }catch(e){}
+  return seedDb();
+}
+function loadSession(){
+  try{return sessionStorage.getItem(SKEY)||localStorage.getItem(SKEY)||null;}catch(e){return null;}
+}
+function giveGame(d,userId,gameId,source){
+  const u=d.users.find(x=>x.id===userId);
+  if(!u||u.library.some(l=>l.gameId===gameId))return false;
+  u.library.push({gameId,installed:false,installing:false,progress:0,hours:0,acquired:Date.now(),source});
+  u.cart=u.cart.filter(id=>id!==gameId);
+  return true;
+}
+function takeGame(d,userId,gameId){
+  const u=d.users.find(x=>x.id===userId);if(!u)return;
+  u.library=u.library.filter(l=>l.gameId!==gameId);
+  if(u.playing===gameId)u.playing=null;
+}
+function botLine(text,game){
+  if(/cześć|hej|siema|witaj|elo/i.test(text))return pick(['Hej! Co dziś gramy?','Siema! Miło Cię widzieć.','Cześć! Właśnie myślałem, żeby coś odpalić.']);
+  if(/\?$/.test(text.trim()))return pick(['Dobre pytanie, daj mi chwilę.','Myślę, że tak.','Hmm, zależy. Co o tym myślisz?']);
+  return pick(BOT_LINES).replace('{game}',game);
+}
+
+/* ============================== kontekst ============================== */
+const Ctx=createContext(null);
+const useApp=()=>useContext(Ctx);
+
+/* ============================== małe komponenty ============================== */
+function Icon({name,size=18,className='',...p}){
+  const C=LR[name];
+  if(!C)return <span style={{width:size,height:size,display:'inline-block'}} className={className}/>;
+  return <C size={size} strokeWidth={2} className={className} {...p}/>;
+}
+function AvatarView({av,size=40,name='?'}){
+  const a=av||{k:'icon',g:0,i:'Ghost'};
+  if(a.k==='img')return <img src={a.src} alt="" width={size} height={size} className="rounded-full object-cover shrink-0" style={{width:size,height:size}}/>;
+  const gr=AV_GRADS[(a.g||0)%AV_GRADS.length];
+  const has=!!LR[a.i];
+  return <span className="rounded-full grid place-items-center shrink-0 text-white font-bold" style={{width:size,height:size,background:'linear-gradient(135deg,'+gr[0]+','+gr[1]+')',fontSize:size*0.42}}>
+    {has?<Icon name={a.i} size={Math.round(size*0.5)}/>:name.charAt(0).toUpperCase()}
+  </span>;
+}
+function UserAvatar({u,size=40,dot=true}){
+  const st=u?dispStatus(u):'offline';
+  return <span className="relative inline-flex shrink-0" style={{width:size,height:size}}>
+    <AvatarView av={u&&u.avatar} size={size} name={u?u.username:'?'}/>
+    {dot&&<span className="absolute -bottom-0.5 -right-0.5 rounded-full border-2 border-ink-900" style={{width:Math.max(10,size*0.28),height:Math.max(10,size*0.28),background:STATUS[st].dot}}/>}
+  </span>;
+}
+function CeoBadge({small}){
+  return <span className={cx('inline-flex items-center gap-1 rounded-md font-bold tracking-wide align-middle',small?'px-1.5 py-0 text-[10px]':'px-2 py-0.5 text-[11px]')} style={{background:'linear-gradient(135deg,#fde68a,#f59e0b)',color:'#3b2300'}} title="CEO platformy Feast">
+    <Icon name="Crown" size={small?10:12}/>CEO
+  </span>;
+}
+function Name({u,className=''}){
+  return <span className={cx('inline-flex items-center gap-1.5 min-w-0',className)}>
+    <span className="truncate">{u.username}</span>{isCEO(u)&&<CeoBadge small/>}
+  </span>;
+}
+function statusText(u,db){
+  if(u.playing){const g=db.games.concat(db.delisted).find(x=>x.id===u.playing);return 'W grze: '+(g?g.title:'?');}
+  return STATUS[u.status].label;
+}
+function GameCover({g,className='',style}){
+  const src=g.cover||(g.steam?'https://cdn.akamai.steamstatic.com/steam/apps/'+g.steam+'/header.jpg':'');
+  const [ok,setOk]=useState(false);
+  useEffect(()=>{setOk(false);},[src]);
+  return <div className={cx('overflow-hidden bg-ink-800',className)} style={Object.assign({backgroundImage:coverArt(g),backgroundSize:'cover',backgroundPosition:'center'},style)}>
+    {src&&<img src={src} alt="" loading="lazy" onLoad={()=>setOk(true)} onError={()=>setOk(false)} className={cx('absolute inset-0 w-full h-full object-cover transition-opacity duration-300',ok?'opacity-100':'opacity-0')}/>}
+  </div>;
+}
+function Price({g,big}){
+  const p=eff(g);
+  if(p===0)return <span className={cx('font-semibold text-good',big?'text-2xl':'text-sm')}>Darmowa</span>;
+  return <span className="inline-flex items-center gap-2">
+    {g.discount>0&&<span className="rounded bg-good px-1.5 py-0.5 text-xs font-bold text-ink-950">-{g.discount}%</span>}
+    <span className="flex flex-col items-end leading-tight">
+      {g.discount>0&&<span className={cx('text-muted line-through',big?'text-sm':'text-[11px]')}>{moneyPlain(g.price)}</span>}
+      <span className={cx('font-semibold tnum',big?'text-2xl':'text-sm')}>{moneyPlain(p)}</span>
+    </span>
+  </span>;
+}
+function Toggle({on,onChange,label,desc,id}){
+  return <label className="flex items-start justify-between gap-4 py-3 cursor-pointer">
+    <span className="min-w-0"><span className="block font-medium">{label}</span>{desc&&<span className="block text-xs text-muted mt-0.5">{desc}</span>}</span>
+    <button type="button" role="switch" id={id} aria-checked={on} onClick={()=>onChange(!on)} className={cx('relative h-6 w-11 shrink-0 rounded-full transition-colors',on?'bg-accent':'bg-ink-600')}>
+      <span className={cx('absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all',on?'left-[22px]':'left-0.5')}/>
+    </button>
+  </label>;
+}
+function Modal({onClose,children,wide}){
+  useEffect(()=>{const h=e=>{if(e.key==='Escape')onClose();};window.addEventListener('keydown',h);return()=>window.removeEventListener('keydown',h);},[]);
+  return <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4" role="dialog" aria-modal="true">
+    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose}/>
+    <div className={cx('relative panel w-full max-h-[90vh] overflow-y-auto page',wide?'sm:max-w-3xl':'sm:max-w-lg')} style={{paddingBottom:'env(safe-area-inset-bottom,0px)'}}>{children}</div>
+  </div>;
+}
+function Empty({icon,title,text,children}){
+  return <div className="panel p-10 text-center flex flex-col items-center gap-3">
+    <span className="grid place-items-center h-14 w-14 rounded-2xl bg-ink-800 text-accent"><Icon name={icon} size={26}/></span>
+    <h3 className="font-display text-lg font-semibold">{title}</h3>
+    {text&&<p className="text-muted max-w-sm">{text}</p>}
+    {children}
+  </div>;
+}
+function SectionTitle({children,right}){
+  return <div className="flex items-center justify-between gap-3 mb-4"><h2 className="font-display text-xl font-semibold">{children}</h2>{right}</div>;
+}
+function Toasts({items}){
+  return <div className="fixed z-[70] flex flex-col gap-2 right-4 w-[min(360px,calc(100vw-32px))]" style={{bottom:'calc(16px + env(safe-area-inset-bottom,0px))'}} aria-live="polite">
+    {items.map(t=><div key={t.id} className="page panel flex items-start gap-3 p-3 shadow-2xl" style={{borderColor:'rgb(var(--accent)/.4)'}}>
+      <span className="mt-0.5 text-accent"><Icon name={t.kind==='msg'?'MessageCircle':t.kind==='friend'?'Users':t.kind==='error'?'AlertCircle':'Check'} size={18}/></span>
+      <span className="text-sm leading-snug">{t.text}</span>
+    </div>)}
+  </div>;
+}
+function AvatarPicker({value,onChange}){
+  const fileRef=useRef(null);
+  const upload=e=>{
+    const f=e.target.files&&e.target.files[0];if(!f)return;
+    const r=new FileReader();
+    r.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        try{
+          const c=document.createElement('canvas');c.width=c.height=96;
+          const s=Math.min(img.width,img.height);
+          c.getContext('2d').drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,96,96);
+          onChange({k:'img',src:c.toDataURL('image/jpeg',0.82)});
+        }catch(err){}
+      };
+      img.src=r.result;
+    };
+    r.readAsDataURL(f);
+    e.target.value='';
+  };
+  const cur=value||{k:'icon',g:0,i:'Ghost'};
+  return <div className="flex flex-col gap-3">
+    <div className="flex items-center gap-3">
+      <AvatarView av={cur} size={56}/>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className="btn btn-soft btn-sm" onClick={()=>fileRef.current&&fileRef.current.click()}><Icon name="Upload" size={14}/>Wgraj zdjęcie</button>
+        <input ref={fileRef} id="avatar-file" type="file" accept="image/*" className="hidden" onChange={upload}/>
+      </div>
+    </div>
+    <div>
+      <span className="label">Ikona</span>
+      <div className="flex flex-wrap gap-2">
+        {AV_ICONS.map(i=><button type="button" key={i} aria-label={i} onClick={()=>onChange({k:'icon',g:cur.k==='icon'?cur.g:0,i})} className={cx('grid place-items-center h-10 w-10 rounded-lg border transition',cur.k==='icon'&&cur.i===i?'border-accent bg-accent/15 text-accent':'border-ink-700 text-muted hover:text-txt')}><Icon name={i} size={18}/></button>)}
+      </div>
+    </div>
+    <div>
+      <span className="label">Kolor</span>
+      <div className="flex flex-wrap gap-2">
+        {AV_GRADS.map((gr,i)=><button type="button" key={i} aria-label={'Kolor '+(i+1)} onClick={()=>onChange({k:'icon',g:i,i:cur.k==='icon'?cur.i:'Ghost'})} className={cx('h-8 w-8 rounded-full border-2',cur.k==='icon'&&cur.g===i?'border-white':'border-transparent')} style={{background:'linear-gradient(135deg,'+gr[0]+','+gr[1]+')'}}/>)}
+      </div>
+    </div>
+  </div>;
+}
+
+/* ============================== EKRAN LOGOWANIA ============================== */
+function AuthScreen(){
+  const A=useApp();
+  const [mode,setMode]=useState('login');
+  const [email,setEmail]=useState('');
+  const [pass,setPass]=useState('');
+  const [nick,setNick]=useState('');
+  const [avatar,setAvatar]=useState({k:'icon',g:Math.floor(Math.random()*AV_GRADS.length),i:pick(AV_ICONS)});
+  const [err,setErr]=useState('');
+  const [show,setShow]=useState(false);
+  const [gOpen,setGOpen]=useState(false);
+  const [gMail,setGMail]=useState('');
+  const [gErr,setGErr]=useState('');
+  const saved=A.db.users.filter(u=>!u.bot);
+  const submit=e=>{
+    e.preventDefault();
+    const r=mode==='login'?A.tryLogin(email,pass):A.tryRegister({email,pass,nick,avatar});
+    setErr(r||'');
+  };
+  const showcase=A.db.games.slice(0,6);
+  return <div className="min-h-[100dvh] grid lg:grid-cols-2 gap-8 items-center max-w-[1200px] mx-auto py-8">
+    <div className="hidden lg:flex flex-col gap-8 pr-6">
+      <div className="flex items-center gap-3">
+        <div className="h-11 w-11 rounded-xl grid place-items-center font-display font-bold text-2xl text-ink-950" style={{background:'linear-gradient(135deg,rgb(var(--accent)),rgb(var(--accent2)))'}}>F</div>
+        <span className="font-display text-3xl font-bold tracking-tight">Feast</span>
+      </div>
+      <h1 className="font-display text-5xl font-bold leading-[1.05] text-balance">Twoja biblioteka gier,<br/>bez zbędnego szumu.</h1>
+      <p className="text-muted text-lg max-w-md">Sklep, biblioteka, znajomi i czat w jednym, czystym interfejsie. Zaloguj się i zacznij ucztę.</p>
+      <div className="grid grid-cols-3 gap-3 max-w-lg">
+        {showcase.map((g,i)=><GameCover key={g.id} g={g} className="relative aspect-[460/215] rounded-lg border border-ink-700" style={{transform:'rotate('+((i%3)-1)*1.5+'deg)'}}/>)}
+      </div>
+    </div>
+    <div className="panel p-6 sm:p-8 w-full max-w-md mx-auto page">
+      <div className="flex lg:hidden items-center gap-2 mb-5">
+        <div className="h-9 w-9 rounded-lg grid place-items-center font-display font-bold text-xl text-ink-950" style={{background:'linear-gradient(135deg,rgb(var(--accent)),rgb(var(--accent2)))'}}>F</div>
+        <span className="font-display text-2xl font-bold">Feast</span>
+      </div>
+      <div className="grid grid-cols-2 gap-1 p-1 rounded-xl bg-ink-800 mb-6">
+        {[['login','Logowanie'],['register','Rejestracja']].map(t=><button key={t[0]} type="button" onClick={()=>{setMode(t[0]);setErr('');}} className={cx('rounded-lg py-2 text-sm font-semibold transition',mode===t[0]?'bg-ink-600 text-txt':'text-muted hover:text-txt')}>{t[1]}</button>)}
+      </div>
+      <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
+        <div><label className="label" htmlFor="auth-email">E-mail</label><input id="auth-email" className="input" type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="ty@example.com"/></div>
+        {mode==='register'&&<div><label className="label" htmlFor="auth-nick">Nazwa użytkownika</label><input id="auth-nick" className="input" value={nick} onChange={e=>setNick(e.target.value)} maxLength={20} placeholder="np. NightRunner"/></div>}
+        <div>
+          <label className="label" htmlFor="auth-pass">Hasło</label>
+          <div className="relative">
+            <input id="auth-pass" className="input pr-11" type={show?'text':'password'} autoComplete={mode==='login'?'current-password':'new-password'} value={pass} onChange={e=>setPass(e.target.value)} placeholder="min. 6 znaków"/>
+            <button type="button" onClick={()=>setShow(!show)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-muted hover:text-txt" aria-label={show?'Ukryj hasło':'Pokaż hasło'}><Icon name={show?'EyeOff':'Eye'} size={16}/></button>
+          </div>
+        </div>
+        {mode==='register'&&<div><span className="label">Awatar</span><AvatarPicker value={avatar} onChange={setAvatar}/></div>}
+        {err&&<div className="flex items-start gap-2 rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad"><Icon name="AlertCircle" size={16} className="mt-0.5 shrink-0"/>{err}</div>}
+        <button className="btn btn-primary py-3" type="submit">{mode==='login'?'Zaloguj się':'Utwórz konto'}<Icon name="ArrowRight" size={16}/></button>
+      </form>
+      <div className="mt-4">
+        {!gOpen?<button type="button" className="btn btn-outline w-full py-3" onClick={()=>setGOpen(true)}><Icon name="Mail" size={16}/>Kontynuuj z Google</button>
+        :<form className="flex flex-col gap-3 rounded-xl border border-ink-700 bg-ink-800/60 p-4" onSubmit={e=>{e.preventDefault();setGErr(A.tryGoogle(gMail)||'');}} noValidate>
+          <div><label className="label" htmlFor="g-mail">Adres Gmail</label><input id="g-mail" className="input" type="email" autoComplete="email" value={gMail} onChange={e=>setGMail(e.target.value)} placeholder="ty@gmail.com"/></div>
+          {gErr&&<div className="rounded-lg border border-bad/30 bg-bad/10 p-2.5 text-sm text-bad">{gErr}</div>}
+          <div className="flex gap-2"><button type="submit" className="btn btn-primary flex-1">Zaloguj przez Google</button><button type="button" className="btn btn-soft" onClick={()=>{setGOpen(false);setGErr('');}}>Anuluj</button></div>
+          <p className="text-xs text-muted">Symulacja: Feast nie łączy się z Google i nie sprawdza, czy adres należy do Ciebie. Prawdziwe logowanie Google wymaga serwera i klucza OAuth.</p>
+        </form>}
+      </div>
+      <div className="my-6 flex items-center gap-3 text-xs text-muted"><span className="h-px flex-1 bg-ink-700"/>szybki dostęp do testów<span className="h-px flex-1 bg-ink-700"/></div>
+      <div className="grid grid-cols-2 gap-3">
+        <button type="button" className="btn btn-outline" onClick={()=>A.quick('ceo')}><Icon name="Crown" size={16} className="text-warn"/>Jako CEO</button>
+        <button type="button" className="btn btn-outline" onClick={()=>A.quick('demo')}><Icon name="Gamepad2" size={16}/>Konto demo</button>
+      </div>
+      <p className="mt-3 text-xs text-muted">Konto CEO (hasło testowe <span className="text-txt">feast123</span>) jest tworzone przy pierwszym użyciu. Konto demo: demo@feast.app / demo123.</p>
+      {saved.length>1&&<div className="mt-5">
+        <span className="label">Konta zapisane w tej przeglądarce</span>
+        <div className="flex flex-col gap-1">
+          {saved.map(u=><button key={u.id} type="button" onClick={()=>A.switchTo(u.id)} className="flex items-center gap-3 rounded-lg p-2 hover:bg-ink-800 text-left">
+            <AvatarView av={u.avatar} size={30} name={u.username}/><span className="flex-1 min-w-0"><Name u={u}/><span className="block text-xs text-muted truncate">{u.email}</span></span><Icon name="ChevronRight" size={14} className="text-muted"/>
+          </button>)}
+        </div>
+      </div>}
+    </div>
+  </div>;
+}
+
+/* ============================== GÓRNY PASEK ============================== */
+function TopBar(){
+  const A=useApp();const {me,db}=A;
+  const [menu,setMenu]=useState(false);
+  const cartCount=me.cart.filter(id=>db.games.some(g=>g.id===id)&&!A.owns(id)).length;
+  const tabs=[['store','Sklep','Store'],['library','Biblioteka','Library'],['community','Społeczność','Users']];
+  if(isCEO(me))tabs.push(['admin','Panel CEO','Crown']);
+  const others=db.users.filter(u=>!u.bot&&u.id!==me.id);
+  const unreadTotal=me.friends.reduce((n,fid)=>n+A.unread(fid),0);
+  return <header className="sticky z-40 -mx-4 px-4 backdrop-blur-xl border-b border-ink-700/70" style={{top:'env(safe-area-inset-top,0px)',background:'rgb(var(--ink-950)/.86)',marginLeft:'calc(-1 * max(16px,env(safe-area-inset-left,0px)))',marginRight:'calc(-1 * max(16px,env(safe-area-inset-right,0px)))',paddingLeft:'max(16px,env(safe-area-inset-left,0px))',paddingRight:'max(16px,env(safe-area-inset-right,0px))'}}>
+    <div className="max-w-[1500px] mx-auto flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5">
+      <button type="button" onClick={()=>A.go('store')} className="flex items-center gap-2.5 mr-1" aria-label="Feast, strona główna">
+        <span className="h-8 w-8 rounded-lg grid place-items-center font-display font-bold text-lg text-ink-950" style={{background:'linear-gradient(135deg,rgb(var(--accent)),rgb(var(--accent2)))'}}>F</span>
+        <span className="font-display text-xl font-bold tracking-tight hidden sm:block">Feast</span>
+      </button>
+      <nav className="order-last w-full md:order-none md:w-auto hscroll flex gap-1" aria-label="Główna nawigacja">
+        {tabs.map(t=>{const active=A.view.name===t[0]||(t[0]==='store'&&['game','cart','checkout'].includes(A.view.name));return <button key={t[0]} type="button" onClick={()=>A.go(t[0])} className={cx('flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold whitespace-nowrap transition',active?'bg-accent/15 text-accent':'text-muted hover:text-txt hover:bg-ink-800')}>
+          <Icon name={t[2]} size={16} className={t[0]==='admin'?'text-warn':''}/>{t[1]}
+        </button>;})}
+      </nav>
+      <div className="relative flex-1 min-w-[150px] max-w-md ml-auto md:ml-0">
+        <Icon name="Search" size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"/>
+        <input id="global-search" className="input pl-9 py-2" placeholder="Szukaj gier, twórców, gatunków" value={A.q} onChange={e=>{A.setQ(e.target.value);if(A.view.name!=='store')A.go('store');}}/>
+        {A.q&&<button type="button" onClick={()=>A.setQ('')} aria-label="Wyczyść" className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-txt"><Icon name="X" size={14}/></button>}
+      </div>
+      <div className="flex items-center gap-1.5 ml-auto">
+        <button type="button" className="lg:hidden relative btn btn-soft px-2.5" onClick={()=>A.setRail(true)} aria-label="Znajomi">
+          <Icon name="Users" size={18}/>{unreadTotal>0&&<span className="absolute -top-1 -right-1 grid place-items-center h-4 min-w-4 px-1 rounded-full bg-accent text-ink-950 text-[10px] font-bold">{unreadTotal}</span>}
+        </button>
+        <button type="button" className="relative btn btn-soft px-2.5" onClick={()=>A.go('cart')} aria-label={'Koszyk, pozycji: '+cartCount}>
+          <Icon name="ShoppingCart" size={18}/>{cartCount>0&&<span className="absolute -top-1 -right-1 grid place-items-center h-4 min-w-4 px-1 rounded-full bg-accent text-ink-950 text-[10px] font-bold">{cartCount}</span>}
+        </button>
+        <div className="relative">
+          <button type="button" onClick={()=>setMenu(!menu)} className="flex items-center gap-2 rounded-xl p-1 pr-2.5 hover:bg-ink-800" aria-haspopup="menu" aria-expanded={menu}>
+            <UserAvatar u={me} size={34}/>
+            <span className="hidden sm:flex flex-col items-start leading-tight max-w-[130px]"><Name u={me} className="text-sm font-semibold"/><span className="text-[11px] text-muted truncate max-w-full">{statusText(me,db)}</span></span>
+            <Icon name="ChevronDown" size={14} className="text-muted"/>
+          </button>
+          {menu&&<>
+            <div className="fixed inset-0 z-40" onClick={()=>setMenu(false)}/>
+            <div className="absolute right-0 mt-2 w-72 panel z-50 p-2 page shadow-2xl" role="menu">
+              <div className="flex items-center gap-3 p-2 border-b border-ink-700 mb-1 pb-3">
+                <UserAvatar u={me} size={42}/><div className="min-w-0"><Name u={me} className="font-semibold"/><div className="text-xs text-muted truncate">{me.email}</div></div>
+              </div>
+              <button type="button" role="menuitem" onClick={()=>{setMenu(false);A.go('settings');}} className="w-full flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-ink-800 text-left"><Icon name="Settings" size={16}/>Ustawienia konta</button>
+              <button type="button" role="menuitem" onClick={()=>{setMenu(false);A.openProfile(me.id);}} className="w-full flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-ink-800 text-left"><Icon name="User" size={16}/>Mój profil</button>
+              {others.length>0&&<div className="border-t border-ink-700 mt-1 pt-2">
+                <div className="label px-3">Przełącz konto</div>
+                {others.map(u=><button key={u.id} type="button" role="menuitem" onClick={()=>{setMenu(false);A.switchTo(u.id);}} className="w-full flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-ink-800 text-left"><AvatarView av={u.avatar} size={26} name={u.username}/><Name u={u} className="text-sm"/></button>)}
+              </div>}
+              <div className="border-t border-ink-700 mt-1 pt-1">
+                <button type="button" role="menuitem" onClick={()=>{setMenu(false);A.logout();}} className="w-full flex items-center gap-3 rounded-lg px-3 py-2 hover:bg-bad/10 text-bad text-left"><Icon name="LogOut" size={16}/>Wyloguj</button>
+              </div>
+            </div>
+          </>}
+        </div>
+      </div>
+    </div>
+  </header>;
+}
+
+/* ============================== PANEL ZNAJOMYCH + CZAT ============================== */
+function ChatPane({friend}){
+  const A=useApp();
+  const key=chatKey(A.me.id,friend.id);
+  const msgs=A.db.chats[key]||[];
+  const [text,setText]=useState('');
+  const box=useRef(null);
+  const typing=!!A.typing[friend.id];
+  useEffect(()=>{if(box.current)box.current.scrollTop=box.current.scrollHeight;},[msgs.length,typing]);
+  const send=e=>{e.preventDefault();const t=text.trim();if(!t)return;A.sendMessage(friend.id,t);setText('');};
+  return <div className="flex flex-col h-full min-h-0">
+    <div className="flex items-center gap-2 p-3 border-b border-ink-700">
+      <button type="button" className="p-1.5 rounded-lg hover:bg-ink-800 text-muted" onClick={()=>A.setChatWith(null)} aria-label="Wróć do listy znajomych"><Icon name="ArrowLeft" size={18}/></button>
+      <button type="button" onClick={()=>A.openProfile(friend.id)} className="flex items-center gap-2.5 min-w-0 flex-1 text-left">
+        <UserAvatar u={friend} size={34}/>
+        <span className="min-w-0"><Name u={friend} className="font-semibold text-sm"/><span className="block text-[11px] text-muted truncate">{statusText(friend,A.db)}</span></span>
+      </button>
+    </div>
+    <div ref={box} className="flex-1 min-h-0 overflow-y-auto p-3 flex flex-col gap-2">
+      {msgs.length===0&&<p className="m-auto text-center text-muted text-sm max-w-[200px]">Brak wiadomości. Napisz pierwszą do {friend.username}.</p>}
+      {msgs.map(m=>{const mine=m.from===A.me.id;return <div key={m.id} className={cx('max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-snug break-words',mine?'self-end bg-accent text-ink-950 rounded-br-md':'self-start bg-ink-700 rounded-bl-md')}>
+        {m.text}<span className={cx('block text-[10px] mt-0.5 text-right',mine?'text-ink-950/60':'text-muted')}>{fmtTime(m.ts)}</span>
+      </div>;})}
+      {typing&&<div className="self-start bg-ink-700 rounded-2xl rounded-bl-md px-3 py-2 text-sm text-muted flex gap-1"><span className="pulse">●</span><span className="pulse" style={{animationDelay:'.2s'}}>●</span><span className="pulse" style={{animationDelay:'.4s'}}>●</span></div>}
+    </div>
+    {friend.bot&&friend.status==='offline'&&<div className="px-3 pb-1 text-[11px] text-muted">{friend.username} jest offline i może nie odpowiedzieć od razu.</div>}
+    <form onSubmit={send} className="p-3 border-t border-ink-700 flex gap-2">
+      <input id="chat-input" className="input py-2" value={text} onChange={e=>setText(e.target.value)} placeholder="Napisz wiadomość" maxLength={500} autoComplete="off"/>
+      <button className="btn btn-primary px-3" type="submit" aria-label="Wyślij"><Icon name="Send" size={16}/></button>
+    </form>
+  </div>;
+}
+function FriendsRail({drawer}){
+  const A=useApp();const {me,db}=A;
+  const [q,setQ]=useState('');
+  const friends=me.friends.map(id=>db.users.find(u=>u.id===id)).filter(Boolean);
+  const order={ingame:0,online:1,away:2,offline:3};
+  const sorted=friends.slice().sort((a,b)=>order[dispStatus(a)]-order[dispStatus(b)]||a.username.localeCompare(b.username));
+  const online=sorted.filter(f=>dispStatus(f)!=='offline').length;
+  const results=q.trim()?db.users.filter(u=>u.id!==me.id&&!me.friends.includes(u.id)&&u.username.toLowerCase().includes(q.trim().toLowerCase())).slice(0,5):[];
+  const chatFriend=A.chatWith?friends.find(f=>f.id===A.chatWith):null;
+  return <div className="panel flex flex-col h-full min-h-0 overflow-hidden">
+    {chatFriend?<ChatPane friend={chatFriend}/>:<>
+      <div className="flex items-center justify-between p-3 border-b border-ink-700">
+        <div><h2 className="font-display font-semibold">Znajomi</h2><span className="text-xs text-muted">{online} online z {friends.length}</span></div>
+        {drawer&&<button type="button" className="p-2 rounded-lg hover:bg-ink-800" onClick={()=>{A.setChatWith(null);A.setRail(false);}} aria-label="Zamknij panel"><Icon name="X" size={18}/></button>}
+      </div>
+      <div className="p-3 border-b border-ink-700">
+        <div className="relative"><Icon name="UserPlus" size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"/><input id={drawer?'friend-add-drawer':'friend-add'} className="input pl-9 py-2" placeholder="Dodaj znajomego po nicku" value={q} onChange={e=>setQ(e.target.value)}/></div>
+        {q.trim()&&<div className="mt-2 flex flex-col gap-1">
+          {results.map(u=><div key={u.id} className="flex items-center gap-2 rounded-lg bg-ink-800 p-2">
+            <UserAvatar u={u} size={28} dot={false}/><Name u={u} className="text-sm flex-1"/>
+            <button type="button" className="btn btn-primary btn-sm px-2" onClick={()=>{A.addFriend(u.id);setQ('');}} aria-label={'Dodaj '+u.username}><Icon name="Plus" size={14}/></button>
+          </div>)}
+          {results.length===0&&<p className="text-xs text-muted px-1">Nie znaleziono gracza o takim nicku.</p>}
+        </div>}
+      </div>
+      <div className="flex-1 min-h-0 overflow-y-auto p-2">
+        {sorted.length===0&&<p className="text-center text-muted text-sm p-6">Nie masz jeszcze znajomych. Wyszukaj kogoś po nicku powyżej.</p>}
+        {['ingame','online','away','offline'].map(st=>{const grp=sorted.filter(f=>dispStatus(f)===st);if(!grp.length)return null;return <div key={st} className="mb-2">
+          <div className="label px-2 mt-1">{STATUS[st].label} ({grp.length})</div>
+          {grp.map(f=>{const n=A.unread(f.id);return <div key={f.id} className="group flex items-center gap-1 rounded-xl hover:bg-ink-800">
+            <button type="button" onClick={()=>A.setChatWith(f.id)} className="flex flex-1 min-w-0 items-center gap-2.5 p-2 text-left">
+              <UserAvatar u={f} size={34}/>
+              <span className="min-w-0 flex-1"><Name u={f} className="text-sm font-medium"/><span className={cx('block text-[11px] truncate',st==='ingame'?'text-accent':'text-muted')}>{statusText(f,db)}</span></span>
+              {n>0&&<span className="grid place-items-center h-5 min-w-5 px-1 rounded-full bg-accent text-ink-950 text-[11px] font-bold">{n}</span>}
+            </button>
+            <button type="button" className="p-1.5 mr-1 rounded-lg text-muted opacity-0 group-hover:opacity-100 focus:opacity-100 hover:text-bad" onClick={()=>A.removeFriend(f.id)} aria-label={'Usuń '+f.username+' ze znajomych'}><Icon name="UserMinus" size={15}/></button>
+          </div>;})}
+        </div>;})}
+      </div>
+    </>}
+  </div>;
+}
+
+/* ============================== SKLEP ============================== */
+function GameCard({g}){
+  const A=useApp();
+  const owned=A.owns(g.id);
+  const inCart=A.me.cart.includes(g.id);
+  const label=owned?'W bibliotece':isFree(g)?'Dodaj do biblioteki':inCart?'Przejdź do koszyka':'Do koszyka';
+  return <div className="gcard group relative" role="link" tabIndex={0} onClick={()=>A.go('game',{id:g.id})} onKeyDown={e=>{if(e.key==='Enter')A.go('game',{id:g.id});}}>
+    <div className="relative aspect-[460/215]">
+      <GameCover g={g} className="absolute inset-0"/>
+      <div className="absolute top-2 left-2 flex gap-1.5">
+        {g.discount>0&&!isFree(g)&&<span className="rounded-md bg-good px-1.5 py-0.5 text-xs font-bold text-ink-950">-{g.discount}%</span>}
+        {owned&&<span className="rounded-md bg-ink-950/80 backdrop-blur px-1.5 py-0.5 text-xs font-semibold text-accent flex items-center gap-1"><Icon name="Check" size={11}/>Posiadasz</span>}
+      </div>
+      <div className="quick absolute bottom-2 right-2">
+        <button type="button" className={cx('btn btn-sm',owned?'btn-soft':'btn-primary')} onClick={e=>{e.stopPropagation();A.quick(g);}}>{label}</button>
+      </div>
+    </div>
+    <div className="p-3.5 flex flex-col gap-2 flex-1">
+      <h3 className="font-display font-semibold leading-tight">{g.title}</h3>
+      <div className="flex flex-wrap gap-1">{g.genres.slice(0,2).map(x=><span key={x} className="tag">{x}</span>)}{isFree(g)&&<span className="tag" style={{color:'rgb(var(--good))'}}>Free-to-Play</span>}</div>
+      <div className="mt-auto flex items-end justify-between gap-2 pt-1">
+        <span className="flex items-center gap-1 text-xs text-muted"><Icon name="ThumbsUp" size={12} className="text-accent"/>{g.rating==null?'Brak ocen':g.rating+'%'}</span>
+        <Price g={g}/>
+      </div>
+    </div>
+  </div>;
+}
+function Hero({games}){
+  const A=useApp();
+  const [i,setI]=useState(0);
+  useEffect(()=>{if(games.length<2)return;const t=setInterval(()=>setI(x=>x+1),6500);return()=>clearInterval(t);},[games.length]);
+  if(!games.length)return null;
+  const g=games[i%games.length];
+  const owned=A.owns(g.id);
+  return <section className="relative overflow-hidden rounded-2xl border border-ink-700 min-h-[320px]" aria-label="Wyróżnione gry">
+    <GameCover g={g} className="absolute inset-0"/>
+    <div className="absolute inset-0 bg-gradient-to-r from-ink-950 via-ink-950/75 to-transparent"/>
+    <div className="absolute inset-0 bg-gradient-to-t from-ink-950/85 via-transparent to-transparent"/>
+    <div key={g.id} className="page relative p-6 sm:p-10 flex flex-col justify-end gap-3 min-h-[320px] max-w-xl">
+      <div className="flex gap-2">
+        <span className="tag" style={{background:'rgb(var(--accent)/.2)',color:'rgb(var(--accent))'}}>{g.discount>0?'Promocja -'+g.discount+'%':'Wyróżniona'}</span>
+        {g.genres.slice(0,2).map(x=><span key={x} className="tag">{x}</span>)}
+      </div>
+      <h1 className="font-display text-3xl sm:text-5xl font-bold leading-[1.05]">{g.title}</h1>
+      <p className="text-txt/80 line-clamp-2 max-w-md">{g.desc}</p>
+      <div className="flex flex-wrap items-center gap-3 pt-1">
+        <button type="button" className="btn btn-primary" onClick={()=>A.go('game',{id:g.id})}>Zobacz grę<Icon name="ArrowRight" size={16}/></button>
+        <button type="button" className="btn btn-outline bg-ink-950/50" onClick={()=>A.quick(g)}>{owned?'W bibliotece':isFree(g)?'Dodaj do biblioteki':'Do koszyka'}</button>
+        <Price g={g} big/>
+      </div>
+    </div>
+    <div className="absolute bottom-4 right-4 flex gap-1.5">
+      {games.map((x,k)=><button key={x.id} type="button" aria-label={'Pokaż: '+x.title} onClick={()=>setI(k)} className={cx('h-1.5 rounded-full transition-all',k===i%games.length?'w-6 bg-accent':'w-1.5 bg-txt/40')}/>)}
+    </div>
+  </section>;
+}
+function StoreView(){
+  const A=useApp();const {db,q}=A;
+  const [type,setType]=useState('all');
+  const [genre,setGenre]=useState('Wszystkie');
+  const [sort,setSort]=useState('pop');
+  const ql=q.trim().toLowerCase();
+  const list=useMemo(()=>{
+    let r=db.games.filter(g=>{
+      if(type==='paid'&&isFree(g))return false;
+      if(type==='free'&&!isFree(g))return false;
+      if(genre==='Darmowe'&&!isFree(g))return false;
+      if(genre!=='Wszystkie'&&genre!=='Darmowe'&&!g.genres.includes(genre))return false;
+      if(ql&&!(g.title.toLowerCase().includes(ql)||g.dev.toLowerCase().includes(ql)||g.genres.some(x=>x.toLowerCase().includes(ql))||(isFree(g)&&'darmowe free'.includes(ql))))return false;
+      return true;
+    });
+    const s={pop:(a,b)=>b.players-a.players,asc:(a,b)=>eff(a)-eff(b),desc:(a,b)=>eff(b)-eff(a),rate:(a,b)=>(b.rating||0)-(a.rating||0),az:(a,b)=>a.title.localeCompare(b.title)}[sort];
+    return r.slice().sort(s);
+  },[db.games,type,genre,sort,ql]);
+  const featured=useMemo(()=>db.games.slice().sort((a,b)=>(b.discount||0)-(a.discount||0)||b.players-a.players).filter(g=>!isFree(g)||g.discount===0).slice(0,4),[db.games]);
+  const filtering=ql||type!=='all'||genre!=='Wszystkie';
+  const reset=()=>{A.setQ('');setType('all');setGenre('Wszystkie');};
+  return <div className="page flex flex-col gap-6">
+    {!filtering&&<Hero games={featured}/>}
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="inline-flex p-1 rounded-xl bg-ink-900 border border-ink-700" role="tablist">
+          {[['all','Wszystkie'],['paid','Płatne'],['free','Free-to-Play']].map(t=><button key={t[0]} type="button" role="tab" aria-selected={type===t[0]} onClick={()=>setType(t[0])} className={cx('rounded-lg px-3.5 py-1.5 text-sm font-semibold transition',type===t[0]?'bg-accent text-ink-950':'text-muted hover:text-txt')}>{t[1]}</button>)}
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="store-sort" className="label mb-0 hidden sm:block">Sortuj</label>
+          <select id="store-sort" className="input py-2 w-auto min-w-[190px]" value={sort} onChange={e=>setSort(e.target.value)}>
+            <option value="pop">Popularność</option><option value="asc">Cena: rosnąco</option><option value="desc">Cena: malejąco</option><option value="rate">Najwyżej oceniane</option><option value="az">Nazwa A–Z</option>
+          </select>
+        </div>
+      </div>
+      <div className="hscroll flex gap-2 pb-1">
+        {['Wszystkie','Akcja','RPG','FPS','Indie','Darmowe','Przygodowe','Survival'].map(x=><button key={x} type="button" className="chip" aria-pressed={genre===x} onClick={()=>setGenre(x)}>{x}</button>)}
+      </div>
+    </div>
+    <div className="flex items-center justify-between">
+      <SectionTitle>{ql?'Wyniki dla „'+q.trim()+'”':filtering?'Wyniki':'Wszystkie gry'}<span className="ml-3 text-sm font-normal text-muted">{list.length} {list.length===1?'gra':'gier'}</span></SectionTitle>
+      {filtering&&<button type="button" className="btn btn-soft btn-sm" onClick={reset}><Icon name="RotateCcw" size={14}/>Wyczyść filtry</button>}
+    </div>
+    {list.length===0?<Empty icon="SearchX" title="Nic nie znaleziono" text="Żadna gra nie pasuje do wybranych filtrów. Zmień kategorię albo wyczyść wyszukiwanie."><button type="button" className="btn btn-primary" onClick={reset}>Pokaż wszystkie gry</button></Empty>
+    :<div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{list.map(g=><GameCard key={g.id} g={g}/>)}</div>}
+  </div>;
+}
+
+/* ============================== STRONA GRY ============================== */
+function GameView({id}){
+  const A=useApp();const {db}=A;
+  const g=db.games.find(x=>x.id===id);
+  if(!g)return <Empty icon="Ghost" title="Tej gry nie ma już w sklepie" text="Mogła zostać wycofana przez administratora."><button type="button" className="btn btn-primary" onClick={()=>A.go('store')}>Wróć do sklepu</button></Empty>;
+  const owned=A.owns(g.id);
+  const entry=A.me.library.find(l=>l.gameId===g.id);
+  const inCart=A.me.cart.includes(g.id);
+  const similar=db.games.filter(x=>x.id!==g.id&&x.genres.some(t=>g.genres.includes(t))).slice(0,4);
+  return <div className="page flex flex-col gap-6">
+    <button type="button" className="btn btn-soft btn-sm self-start" onClick={()=>A.go('store')}><Icon name="ArrowLeft" size={14}/>Sklep</button>
+    <div className="grid xl:grid-cols-[1fr_340px] gap-6">
+      <div className="min-w-0 flex flex-col gap-5">
+        <div className="relative aspect-[460/215] sm:aspect-[16/7] rounded-2xl border border-ink-700">
+          <GameCover g={g} className="absolute inset-0 rounded-2xl"/>
+        </div>
+        <div>
+          <h1 className="font-display text-3xl sm:text-4xl font-bold leading-tight">{g.title}</h1>
+          <div className="flex flex-wrap gap-2 mt-3">{g.genres.map(x=><span key={x} className="tag">{x}</span>)}{isFree(g)&&<span className="tag" style={{color:'rgb(var(--good))'}}>Free-to-Play</span>}</div>
+        </div>
+        <p className="text-txt/85 text-[15px] leading-relaxed max-w-prose">{g.desc}</p>
+        <div className="panel p-5 grid sm:grid-cols-3 gap-5">
+          <div><span className="label">Oceny</span><div className="font-semibold">{ratingLabel(g.rating)}</div>{g.rating!=null&&<><div className="bar mt-2"><i style={{width:g.rating+'%'}}/></div><span className="text-xs text-muted">{g.rating}% pozytywnych</span></>}</div>
+          <div><span className="label">Twórca</span><div className="font-semibold">{g.dev}</div><span className="text-xs text-muted">Premiera: {g.year}</span></div>
+          <div><span className="label">Gracze teraz</span><div className="font-semibold tnum">{fmtNum(g.players)}</div><span className="text-xs text-muted">w trakcie gry</span></div>
+        </div>
+      </div>
+      <aside className="panel p-5 flex flex-col gap-4 self-start xl:sticky xl:top-28">
+        <div className="flex items-end justify-between"><span className="label mb-0">Cena</span><Price g={g} big/></div>
+        {owned?<>
+          <div className="flex items-center gap-2 rounded-lg bg-good/10 border border-good/30 p-3 text-sm text-good"><Icon name="BadgeCheck" size={18}/>Ta gra jest w Twojej bibliotece{entry&&entry.hours>0?' ('+fmtH(entry.hours)+')':''}.</div>
+          <button type="button" className="btn btn-primary" onClick={()=>A.go('library')}><Icon name="Library" size={16}/>Przejdź do biblioteki</button>
+        </>:isFree(g)?
+          <button type="button" className="btn btn-good py-3" onClick={()=>A.claimFree(g)}><Icon name="Plus" size={16}/>Dodaj do biblioteki</button>
+        :<>
+          <button type="button" className="btn btn-primary py-3" onClick={()=>A.buyNow(g)}><Icon name="CreditCard" size={16}/>Kup teraz</button>
+          {inCart?<button type="button" className="btn btn-outline" onClick={()=>A.go('cart')}><Icon name="ShoppingCart" size={16}/>W koszyku, przejdź</button>
+          :<button type="button" className="btn btn-outline" onClick={()=>A.addToCart(g)}><Icon name="ShoppingCart" size={16}/>Dodaj do koszyka</button>}
+        </>}
+        <ul className="text-xs text-muted flex flex-col gap-2 pt-2 border-t border-ink-700">
+          <li className="flex gap-2"><Icon name="Download" size={14} className="mt-0.5 text-accent"/>Rozmiar instalacji: ok. {sizeOf(g)}</li>
+          <li className="flex gap-2"><Icon name="Trophy" size={14} className="mt-0.5 text-accent"/>6 osiągnięć do zdobycia</li>
+          <li className="flex gap-2"><Icon name="Shield" size={14} className="mt-0.5 text-accent"/>Gra na stałe w Twojej bibliotece</li>
+        </ul>
+      </aside>
+    </div>
+    {similar.length>0&&<div><SectionTitle>Podobne gry</SectionTitle><div className="grid gap-4 grid-cols-1 sm:grid-cols-2 2xl:grid-cols-4">{similar.map(x=><GameCard key={x.id} g={x}/>)}</div></div>}
+  </div>;
+}
+
+/* ============================== KOSZYK ============================== */
+function cartGames(A){return A.me.cart.map(id=>A.db.games.find(g=>g.id===id)).filter(g=>g&&!A.owns(g.id)&&!isFree(g));}
+function CartView(){
+  const A=useApp();
+  const items=cartGames(A);
+  const total=Math.round(items.reduce((s,g)=>s+eff(g)*100,0))/100;
+  const vat=Math.round(total*23/123*100)/100;
+  return <div className="page flex flex-col gap-5">
+    <SectionTitle>Koszyk<span className="ml-3 text-sm font-normal text-muted">{items.length} {items.length===1?'pozycja':'pozycji'}</span></SectionTitle>
+    {items.length===0?<Empty icon="ShoppingCart" title="Twój koszyk jest pusty" text="Dodaj coś ze sklepu. Darmowe gry trafiają do biblioteki jednym kliknięciem."><button type="button" className="btn btn-primary" onClick={()=>A.go('store')}>Przeglądaj sklep</button></Empty>
+    :<div className="grid lg:grid-cols-[1fr_340px] gap-5">
+      <div className="flex flex-col gap-3">
+        {items.map(g=><div key={g.id} className="panel p-3 flex items-center gap-4">
+          <button type="button" onClick={()=>A.go('game',{id:g.id})} className="relative w-32 sm:w-40 shrink-0 aspect-[460/215] rounded-lg border border-ink-700"><GameCover g={g} className="absolute inset-0 rounded-lg"/></button>
+          <div className="min-w-0 flex-1"><h3 className="font-display font-semibold truncate">{g.title}</h3><span className="text-xs text-muted">{g.dev}</span></div>
+          <Price g={g}/>
+          <button type="button" className="p-2 rounded-lg text-muted hover:text-bad hover:bg-bad/10" onClick={()=>A.removeFromCart(g.id)} aria-label={'Usuń '+g.title+' z koszyka'}><Icon name="Trash2" size={16}/></button>
+        </div>)}
+        <button type="button" className="btn btn-soft self-start" onClick={()=>A.go('store')}><Icon name="ArrowLeft" size={14}/>Kontynuuj zakupy</button>
+      </div>
+      <aside className="panel p-5 flex flex-col gap-3 self-start">
+        <h3 className="font-display font-semibold text-lg">Podsumowanie</h3>
+        <div className="flex justify-between text-sm"><span className="text-muted">Wartość netto</span><span className="tnum">{moneyPlain(total-vat)}</span></div>
+        <div className="flex justify-between text-sm"><span className="text-muted">VAT 23%</span><span className="tnum">{moneyPlain(vat)}</span></div>
+        <div className="flex justify-between items-baseline border-t border-ink-700 pt-3"><span className="font-semibold">Razem do zapłaty</span><span className="font-display text-2xl font-bold tnum">{moneyPlain(total)}</span></div>
+        <button type="button" className="btn btn-primary py-3 mt-1" onClick={()=>A.go('checkout')}><Icon name="Lock" size={15}/>Przejdź do płatności</button>
+      </aside>
+    </div>}
+  </div>;
+}
+
+/* ============================== PŁATNOŚĆ ============================== */
+function CheckoutView(){
+  const A=useApp();
+  const items=cartGames(A);
+  const total=Math.round(items.reduce((s,g)=>s+eff(g)*100,0))/100;
+  const [method,setMethod]=useState('blik');
+  const [step,setStep]=useState('form');
+  const [phase,setPhase]=useState(0);
+  const [receipt,setReceipt]=useState(null);
+  const [errs,setErrs]=useState({});
+  const [f,setF]=useState({name:'',email:A.me.email,country:'Polska',blik:'',card:'',holder:'',exp:'',cvc:'',pp:A.me.email});
+  const timers=useRef([]);
+  useEffect(()=>()=>timers.current.forEach(clearTimeout),[]);
+  useEffect(()=>{if(step==='form'&&items.length===0)A.go('cart');},[items.length,step]);
+  const set=k=>e=>setF(Object.assign({},f,{[k]:e.target.value}));
+  const validate=()=>{
+    const e={};
+    if(f.name.trim().length<3)e.name='Podaj imię i nazwisko.';
+    if(!/^\S+@\S+\.\S+$/.test(f.email))e.email='Podaj poprawny adres e-mail.';
+    if(method==='blik'&&!/^\d{6}$/.test(f.blik))e.blik='Kod BLIK składa się z 6 cyfr.';
+    if(method==='card'){
+      const n=f.card.replace(/\D/g,'');
+      if(n.length<13||n.length>19)e.card='Numer karty ma od 13 do 19 cyfr.';
+      if(f.holder.trim().length<3)e.holder='Podaj imię i nazwisko z karty.';
+      const m=/^(\d{2})\/(\d{2})$/.exec(f.exp);
+      const now=new Date();
+      if(!m||+m[1]<1||+m[1]>12||(2000+ +m[2])*12+ +m[1]<now.getFullYear()*12+now.getMonth()+1)e.exp='Data ważności jest nieprawidłowa lub minęła.';
+      if(!/^\d{3,4}$/.test(f.cvc))e.cvc='CVC to 3 lub 4 cyfry.';
+    }
+    if(method==='paypal'&&!/^\S+@\S+\.\S+$/.test(f.pp))e.pp='Podaj e-mail konta PayPal.';
+    return e;
+  };
+  const pay=()=>{
+    const e=validate();setErrs(e);
+    if(Object.keys(e).length)return;
+    const snapshot=items.slice();const amount=total;
+    setStep('processing');setPhase(0);
+    timers.current.push(setTimeout(()=>setPhase(1),900));
+    timers.current.push(setTimeout(()=>setPhase(2),1800));
+    timers.current.push(setTimeout(()=>{
+      const order={id:'FST-'+Math.floor(10000000+Math.random()*89999999),ts:Date.now(),method,total:amount,items:snapshot.map(g=>({id:g.id,title:g.title,price:eff(g)}))};
+      A.mutate(d=>{snapshot.forEach(g=>giveGame(d,A.me.id,g.id,'purchase'));const u=d.users.find(x=>x.id===A.me.id);u.orders.unshift(order);u.cart=[];});
+      setReceipt(order);setStep('done');
+    },2800));
+  };
+  const methods=[['blik','BLIK','Smartphone'],['card','Karta płatnicza','CreditCard'],['paypal','PayPal','Wallet']];
+  const phases=['Łączenie z operatorem płatności…','Autoryzacja transakcji…','Potwierdzanie zakupu…'];
+  if(step==='processing')return <div className="page panel p-12 text-center max-w-lg mx-auto flex flex-col items-center gap-4">
+    <Icon name="Loader2" size={40} className="text-accent spin"/>
+    <h2 className="font-display text-xl font-semibold">Przetwarzamy płatność</h2>
+    <p className="text-muted" aria-live="polite">{phases[phase]}</p>
+    <p className="text-xs text-muted">Nie zamykaj tej strony.</p>
+  </div>;
+  if(step==='done'&&receipt)return <div className="page panel p-6 sm:p-10 max-w-xl mx-auto flex flex-col gap-5">
+    <div className="flex flex-col items-center text-center gap-2">
+      <span className="grid place-items-center h-16 w-16 rounded-full bg-good/15 text-good"><Icon name="Check" size={32}/></span>
+      <h2 className="font-display text-2xl font-bold">Płatność zakończona</h2>
+      <p className="text-muted">Gry zostały dodane do Twojej biblioteki.</p>
+    </div>
+    <div className="rounded-xl bg-ink-800 p-4 flex flex-col gap-2 text-sm">
+      <div className="flex justify-between"><span className="text-muted">Numer zamówienia</span><span className="font-semibold tnum">{receipt.id}</span></div>
+      <div className="flex justify-between"><span className="text-muted">Data</span><span>{fmtDate(receipt.ts)}, {fmtTime(receipt.ts)}</span></div>
+      <div className="flex justify-between"><span className="text-muted">Metoda</span><span>{methods.find(m=>m[0]===receipt.method)[1]}</span></div>
+      <div className="border-t border-ink-700 my-1"/>
+      {receipt.items.map(i=><div key={i.id} className="flex justify-between gap-3"><span className="truncate">{i.title}</span><span className="tnum">{moneyPlain(i.price)}</span></div>)}
+      <div className="flex justify-between border-t border-ink-700 pt-2 font-bold text-base"><span>Razem</span><span className="tnum">{moneyPlain(receipt.total)}</span></div>
+    </div>
+    <div className="flex flex-wrap gap-3 justify-center"><button type="button" className="btn btn-primary" onClick={()=>A.go('library')}><Icon name="Library" size={16}/>Przejdź do biblioteki</button><button type="button" className="btn btn-soft" onClick={()=>A.go('store')}>Wróć do sklepu</button></div>
+  </div>;
+  const Err=({k})=>errs[k]?<span className="text-xs text-bad mt-1 block">{errs[k]}</span>:null;
+  return <div className="page flex flex-col gap-5">
+    <button type="button" className="btn btn-soft btn-sm self-start" onClick={()=>A.go('cart')}><Icon name="ArrowLeft" size={14}/>Koszyk</button>
+    <SectionTitle>Płatność</SectionTitle>
+    <div className="grid lg:grid-cols-[1fr_340px] gap-5">
+      <div className="flex flex-col gap-5">
+        <div className="panel p-5 flex flex-col gap-4">
+          <h3 className="font-display font-semibold">Dane do faktury</h3>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div><label className="label" htmlFor="co-name">Imię i nazwisko</label><input id="co-name" className="input" value={f.name} onChange={set('name')} autoComplete="name"/><Err k="name"/></div>
+            <div><label className="label" htmlFor="co-email">E-mail do potwierdzenia</label><input id="co-email" className="input" type="email" value={f.email} onChange={set('email')} autoComplete="email"/><Err k="email"/></div>
+            <div><label className="label" htmlFor="co-country">Kraj</label><select id="co-country" className="input" value={f.country} onChange={set('country')}>{['Polska','Niemcy','Czechy','Słowacja','Wielka Brytania','Inny'].map(c=><option key={c}>{c}</option>)}</select></div>
+          </div>
+        </div>
+        <div className="panel p-5 flex flex-col gap-4">
+          <h3 className="font-display font-semibold">Metoda płatności</h3>
+          <div className="grid sm:grid-cols-3 gap-3" role="radiogroup">
+            {methods.map(m=><button key={m[0]} type="button" role="radio" aria-checked={method===m[0]} onClick={()=>{setMethod(m[0]);setErrs({});}} className={cx('flex items-center gap-3 rounded-xl border p-3.5 text-left transition',method===m[0]?'border-accent bg-accent/10':'border-ink-700 hover:border-ink-600')}>
+              <span className={cx('grid place-items-center h-9 w-9 rounded-lg',method===m[0]?'bg-accent text-ink-950':'bg-ink-800 text-muted')}><Icon name={m[2]} size={18}/></span><span className="font-semibold text-sm">{m[1]}</span>
+            </button>)}
+          </div>
+          {method==='blik'&&<div><label className="label" htmlFor="co-blik">Kod BLIK (6 cyfr)</label><input id="co-blik" className="input tnum tracking-[0.4em] text-lg max-w-[200px]" inputMode="numeric" maxLength={6} value={f.blik} onChange={e=>setF(Object.assign({},f,{blik:e.target.value.replace(/\D/g,'')}))} placeholder="000000"/><Err k="blik"/><p className="text-xs text-muted mt-2">Wygeneruj kod w aplikacji swojego banku i wpisz go tutaj. W symulacji działa dowolny 6-cyfrowy kod.</p></div>}
+          {method==='card'&&<div className="grid sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2"><label className="label" htmlFor="co-card">Numer karty</label><input id="co-card" className="input tnum" inputMode="numeric" autoComplete="off" value={f.card} onChange={e=>setF(Object.assign({},f,{card:e.target.value.replace(/\D/g,'').slice(0,19).replace(/(.{4})/g,'$1 ').trim()}))} placeholder="4242 4242 4242 4242"/><Err k="card"/></div>
+            <div className="sm:col-span-2"><label className="label" htmlFor="co-holder">Imię i nazwisko na karcie</label><input id="co-holder" className="input" autoComplete="off" value={f.holder} onChange={set('holder')}/><Err k="holder"/></div>
+            <div><label className="label" htmlFor="co-exp">Ważna do (MM/RR)</label><input id="co-exp" className="input tnum" inputMode="numeric" autoComplete="off" value={f.exp} onChange={e=>{const d=e.target.value.replace(/\D/g,'').slice(0,4);setF(Object.assign({},f,{exp:d.length>2?d.slice(0,2)+'/'+d.slice(2):d}));}} placeholder="12/29"/><Err k="exp"/></div>
+            <div><label className="label" htmlFor="co-cvc">CVC</label><input id="co-cvc" className="input tnum" inputMode="numeric" autoComplete="off" maxLength={4} value={f.cvc} onChange={e=>setF(Object.assign({},f,{cvc:e.target.value.replace(/\D/g,'')}))} placeholder="123"/><Err k="cvc"/></div>
+          </div>}
+          {method==='paypal'&&<div><label className="label" htmlFor="co-pp">E-mail konta PayPal</label><input id="co-pp" className="input" type="email" value={f.pp} onChange={set('pp')}/><Err k="pp"/><p className="text-xs text-muted mt-2">Po zatwierdzeniu zostaniesz „przekierowany” do PayPal. W symulacji dzieje się to automatycznie.</p></div>}
+          <div className="flex items-start gap-2 rounded-lg bg-warn/10 border border-warn/30 p-3 text-xs text-warn"><Icon name="Info" size={15} className="mt-0.5 shrink-0"/>To symulacja płatności. Nic nie jest pobierane ani wysyłane, a dane karty nie są zapisywane. Nie wpisuj prawdziwych danych.</div>
+        </div>
+      </div>
+      <aside className="panel p-5 flex flex-col gap-3 self-start">
+        <h3 className="font-display font-semibold">Twoje zamówienie</h3>
+        {items.map(g=><div key={g.id} className="flex items-center gap-3"><div className="relative w-16 aspect-[460/215] rounded-md border border-ink-700 shrink-0"><GameCover g={g} className="absolute inset-0 rounded-md"/></div><span className="flex-1 min-w-0 text-sm truncate">{g.title}</span><span className="text-sm tnum">{moneyPlain(eff(g))}</span></div>)}
+        <div className="flex justify-between items-baseline border-t border-ink-700 pt-3"><span className="font-semibold">Razem</span><span className="font-display text-2xl font-bold tnum">{moneyPlain(total)}</span></div>
+        <button type="button" className="btn btn-primary py-3" onClick={pay} disabled={items.length===0}><Icon name="Lock" size={15}/>Zapłać {moneyPlain(total)}</button>
+      </aside>
+    </div>
+  </div>;
+}
+
+/* ============================== BIBLIOTEKA ============================== */
+function LibCard({l,g}){
+  const A=useApp();
+  const playing=A.me.playing===g.id;
+  const unlocked=ACH.filter(a=>l.hours>=a.h).length;
+  return <div className={cx('panel overflow-hidden flex flex-col',playing&&'ring-2 ring-accent')}>
+    <div className="relative aspect-[460/215]">
+      <GameCover g={g} className="absolute inset-0"/>
+      {playing&&<span className="absolute top-2 left-2 flex items-center gap-1.5 rounded-md bg-ink-950/85 px-2 py-1 text-xs font-semibold text-accent"><span className="h-2 w-2 rounded-full bg-accent pulse"/>W grze</span>}
+    </div>
+    <div className="p-4 flex flex-col gap-3 flex-1">
+      <div className="min-w-0"><h3 className="font-display font-semibold truncate">{g.title}</h3>
+        <div className="flex items-center gap-3 text-xs text-muted mt-1"><span className="flex items-center gap-1"><Icon name="Clock" size={12}/>{fmtH(l.hours)}</span><button type="button" className="flex items-center gap-1 hover:text-accent" onClick={()=>A.setAchGame(g.id)}><Icon name="Trophy" size={12}/>{unlocked}/{ACH.length}</button></div>
+      </div>
+      {l.installing?<div><div className="flex justify-between text-xs text-muted mb-1.5"><span>Pobieranie… {sizeOf(g)}</span><span className="tnum">{Math.floor(l.progress)}%</span></div><div className="bar"><i style={{width:l.progress+'%'}}/></div>
+        <button type="button" className="btn btn-soft btn-sm mt-3 w-full" onClick={()=>A.cancelInstall(g.id)}>Anuluj pobieranie</button></div>
+      :l.installed?<div className="flex gap-2 mt-auto">
+        {playing?<button type="button" className="btn btn-danger flex-1" onClick={A.stopPlaying}><Icon name="Square" size={15}/>Zakończ grę</button>
+        :<button type="button" className="btn btn-primary flex-1" onClick={()=>A.play(g.id)}><Icon name="Play" size={15}/>Graj</button>}
+        <button type="button" className="btn btn-soft px-3" onClick={()=>A.uninstall(g.id)} aria-label={'Odinstaluj '+g.title} title="Odinstaluj"><Icon name="Trash2" size={15}/></button>
+      </div>
+      :<button type="button" className="btn btn-soft mt-auto" onClick={()=>A.install(g.id)}><Icon name="Download" size={15}/>Zainstaluj <span className="text-muted font-normal">({sizeOf(g)})</span></button>}
+    </div>
+  </div>;
+}
+function LibraryView(){
+  const A=useApp();const {me,db}=A;
+  const [tab,setTab]=useState('all');
+  const [lq,setLq]=useState('');
+  const [sort,setSort]=useState('name');
+  const all=me.library.map(l=>({l,g:db.games.concat(db.delisted).find(x=>x.id===l.gameId)})).filter(x=>x.g);
+  const total=all.reduce((s,x)=>s+x.l.hours,0);
+  const filtered=all.filter(x=>x.g.title.toLowerCase().includes(lq.trim().toLowerCase())).sort((a,b)=>sort==='name'?a.g.title.localeCompare(b.g.title):sort==='hours'?b.l.hours-a.l.hours:b.l.acquired-a.l.acquired);
+  const inst=filtered.filter(x=>x.l.installed||x.l.installing);
+  const notInst=filtered.filter(x=>!x.l.installed&&!x.l.installing);
+  const Group=({title,rows,icon})=>rows.length?<div><SectionTitle><span className="flex items-center gap-2"><Icon name={icon} size={18} className="text-accent"/>{title}<span className="text-sm font-normal text-muted">{rows.length}</span></span></SectionTitle><div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{rows.map(x=><LibCard key={x.g.id} l={x.l} g={x.g}/>)}</div></div>:null;
+  if(all.length===0)return <div className="page"><Empty icon="Library" title="Twoja biblioteka jest pusta" text="Kup grę albo dodaj darmową tytuł ze sklepu. Pojawi się tu na stałe."><button type="button" className="btn btn-primary" onClick={()=>A.go('store')}>Idź do sklepu</button></Empty></div>;
+  return <div className="page flex flex-col gap-6">
+    <div className="grid grid-cols-3 gap-3">
+      {[['Gry',all.length,'Gamepad2'],['Zainstalowane',all.filter(x=>x.l.installed).length,'HardDrive'],['Czas gry',fmtH(total),'Clock']].map(s=><div key={s[0]} className="panel p-4 flex items-center gap-3"><span className="hidden sm:grid place-items-center h-10 w-10 rounded-xl bg-accent/12 text-accent"><Icon name={s[2]} size={18}/></span><div><div className="font-display text-xl font-bold tnum">{s[1]}</div><div className="text-xs text-muted">{s[0]}</div></div></div>)}
+    </div>
+    <div className="flex flex-wrap items-center gap-3">
+      <div className="inline-flex p-1 rounded-xl bg-ink-900 border border-ink-700">
+        {[['all','Wszystkie'],['installed','Zainstalowane'],['not','Niezainstalowane']].map(t=><button key={t[0]} type="button" onClick={()=>setTab(t[0])} className={cx('rounded-lg px-3 py-1.5 text-sm font-semibold transition',tab===t[0]?'bg-accent text-ink-950':'text-muted hover:text-txt')}>{t[1]}</button>)}
+      </div>
+      <div className="relative flex-1 min-w-[160px] max-w-xs"><Icon name="Search" size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"/><input id="lib-search" className="input pl-9 py-2" placeholder="Szukaj w bibliotece" value={lq} onChange={e=>setLq(e.target.value)}/></div>
+      <select id="lib-sort" className="input py-2 w-auto ml-auto" value={sort} onChange={e=>setSort(e.target.value)} aria-label="Sortowanie biblioteki"><option value="name">Nazwa A–Z</option><option value="hours">Czas gry</option><option value="new">Ostatnio dodane</option></select>
+    </div>
+    {filtered.length===0&&<Empty icon="SearchX" title="Brak wyników" text="Żadna gra z biblioteki nie pasuje do wyszukiwania."/>}
+    {tab!=='not'&&<Group title="Zainstalowane" rows={inst} icon="HardDrive"/>}
+    {tab!=='installed'&&<Group title="Niezainstalowane" rows={notInst} icon="Download"/>}
+    <p className="text-xs text-muted">Czas gry w symulacji płynie przyspieszony: co kilka sekund dolicza się kilka minut.</p>
+  </div>;
+}
+function AchievementsModal({gameId}){
+  const A=useApp();
+  const g=A.db.games.concat(A.db.delisted).find(x=>x.id===gameId);
+  const l=A.me.library.find(x=>x.gameId===gameId);
+  if(!g||!l)return null;
+  return <Modal onClose={()=>A.setAchGame(null)}>
+    <div className="p-5 flex flex-col gap-4">
+      <div className="flex items-center justify-between"><h3 className="font-display text-lg font-semibold">Osiągnięcia: {g.title}</h3><button type="button" className="p-2 rounded-lg hover:bg-ink-800" onClick={()=>A.setAchGame(null)} aria-label="Zamknij"><Icon name="X" size={18}/></button></div>
+      <p className="text-sm text-muted">Czas gry: {fmtH(l.hours)}</p>
+      <div className="flex flex-col gap-2">
+        {ACH.map(a=>{const ok=l.hours>=a.h;return <div key={a.t} className={cx('flex items-center gap-3 rounded-xl border p-3',ok?'border-accent/40 bg-accent/8':'border-ink-700 opacity-70')}>
+          <span className={cx('grid place-items-center h-10 w-10 rounded-lg',ok?'bg-accent text-ink-950':'bg-ink-800 text-muted')}><Icon name={ok?'Trophy':'Lock'} size={18}/></span>
+          <div className="flex-1"><div className="font-semibold text-sm">{a.t}</div><div className="text-xs text-muted">{a.d}</div></div>
+          {ok&&<Icon name="Check" size={16} className="text-good"/>}
+        </div>;})}
+      </div>
+    </div>
+  </Modal>;
+}
+
+/* ============================== URUCHAMIANIE GIER ============================== */
+function RunnerGame(){
+  const ref=useRef(null);
+  useEffect(()=>{
+    const c=ref.current;const x=c.getContext('2d');
+    const W=c.width,H=c.height,gy=H-50,px=90;
+    let p,obs,speed,score,dead,next,best=0,raf;
+    const reset=()=>{p={y:gy-30,vy:0,s:30,on:true,rot:0};obs=[];speed=5;score=0;dead=false;next=50;};
+    const jump=()=>{if(dead){reset();return;}if(p.on){p.vy=-12.5;p.on=false;}};
+    const key=e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();jump();}};
+    reset();
+    window.addEventListener('keydown',key);c.addEventListener('pointerdown',jump);
+    const loop=()=>{
+      if(!dead){
+        p.vy+=0.7;p.y+=p.vy;
+        if(p.y>=gy-p.s){p.y=gy-p.s;p.vy=0;p.on=true;p.rot=0;}else p.rot+=0.12;
+        next--;
+        if(next<=0){obs.push({x:W+20,w:30,h:26+Math.random()*10,block:Math.random()<0.3});next=Math.floor(46+Math.random()*50-Math.min(speed,12)*1.5);}
+        obs.forEach(o=>{o.x-=speed;});
+        obs=obs.filter(o=>o.x>-60);
+        obs.forEach(o=>{
+          const hit=px+p.s-4>o.x+4&&px+4<o.x+o.w-4&&p.y+p.s>gy-o.h+6;
+          if(hit){dead=true;best=Math.max(best,Math.floor(score));}
+        });
+        score+=0.12;speed=5+score/60;
+      }
+      const g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,'#0b1228');g.addColorStop(1,'#1b1450');
+      x.fillStyle=g;x.fillRect(0,0,W,H);
+      x.fillStyle='#22d3ee';x.fillRect(0,gy,W,3);
+      x.fillStyle='rgba(34,211,238,0.12)';x.fillRect(0,gy+3,W,H-gy);
+      obs.forEach(o=>{
+        x.fillStyle=o.block?'#8b5cf6':'#f43f5e';
+        if(o.block)x.fillRect(o.x,gy-o.h,o.w,o.h);
+        else{x.beginPath();x.moveTo(o.x,gy);x.lineTo(o.x+o.w/2,gy-o.h);x.lineTo(o.x+o.w,gy);x.closePath();x.fill();}
+      });
+      x.save();x.translate(px+p.s/2,p.y+p.s/2);x.rotate(p.rot);
+      x.fillStyle='#facc15';x.fillRect(-p.s/2,-p.s/2,p.s,p.s);
+      x.fillStyle='#0b1228';x.fillRect(-p.s/2+6,-p.s/2+7,6,6);x.fillRect(p.s/2-12,-p.s/2+7,6,6);
+      x.restore();
+      x.fillStyle='#e7ecf8';x.font='bold 16px Inter,sans-serif';x.fillText('Wynik: '+Math.floor(score)+'   Rekord: '+Math.max(best,Math.floor(score)),16,28);
+      if(dead){
+        x.fillStyle='rgba(7,11,22,0.7)';x.fillRect(0,0,W,H);
+        x.fillStyle='#fff';x.font='bold 28px Inter,sans-serif';x.textAlign='center';
+        x.fillText('Koniec gry',W/2,H/2-6);
+        x.font='15px Inter,sans-serif';x.fillText('Kliknij lub naciśnij spację, aby zagrać ponownie',W/2,H/2+24);x.textAlign='left';
+      }
+      raf=requestAnimationFrame(loop);
+    };
+    raf=requestAnimationFrame(loop);
+    return()=>{cancelAnimationFrame(raf);window.removeEventListener('keydown',key);c.removeEventListener('pointerdown',jump);};
+  },[]);
+  return <div><canvas ref={ref} width={640} height={280} className="w-full rounded-xl border border-ink-700 touch-none cursor-pointer" aria-label="Geometry Dash: skacz nad przeszkodami"/><p className="text-xs text-muted mt-2">Skacz klikaniem, dotknięciem lub spacją. Omijaj kolce i bloki.</p></div>;
+}
+function AimGame(){
+  const ref=useRef(null);
+  useEffect(()=>{
+    const c=ref.current;const x=c.getContext('2d');
+    const W=c.width,H=c.height;
+    let targets,hits,shots,left,last,spawn,raf,over;
+    const reset=()=>{targets=[];hits=0;shots=0;left=30;last=performance.now();spawn=0;over=false;};
+    reset();
+    const click=e=>{
+      if(over){reset();return;}
+      const r=c.getBoundingClientRect();const mx=(e.clientX-r.left)*W/r.width,my=(e.clientY-r.top)*H/r.height;
+      shots++;
+      for(let i=targets.length-1;i>=0;i--){const t=targets[i];if(Math.hypot(mx-t.x,my-t.y)<=t.r){targets.splice(i,1);hits++;break;}}
+    };
+    c.addEventListener('pointerdown',click);
+    const loop=now=>{
+      const dt=(now-last)/1000;last=now;
+      if(!over){
+        left-=dt;spawn-=dt;
+        if(spawn<=0){targets.push({x:40+Math.random()*(W-80),y:60+Math.random()*(H-100),r:24,life:1.3});spawn=0.55;}
+        targets.forEach(t=>{t.life-=dt;});targets=targets.filter(t=>t.life>0);
+        if(left<=0){left=0;over=true;}
+      }
+      x.fillStyle='#0b1228';x.fillRect(0,0,W,H);
+      x.strokeStyle='rgba(139,150,181,0.12)';x.lineWidth=1;
+      for(let i=0;i<W;i+=40){x.beginPath();x.moveTo(i,0);x.lineTo(i,H);x.stroke();}
+      for(let j=0;j<H;j+=40){x.beginPath();x.moveTo(0,j);x.lineTo(W,j);x.stroke();}
+      targets.forEach(t=>{
+        const k=Math.max(0.35,t.life/1.3);
+        x.fillStyle='#f43f5e';x.beginPath();x.arc(t.x,t.y,t.r*k+4,0,7);x.fill();
+        x.fillStyle='#fff';x.beginPath();x.arc(t.x,t.y,t.r*k*0.6,0,7);x.fill();
+        x.fillStyle='#f43f5e';x.beginPath();x.arc(t.x,t.y,t.r*k*0.25,0,7);x.fill();
+      });
+      x.fillStyle='#e7ecf8';x.font='bold 16px Inter,sans-serif';
+      x.fillText('Czas: '+Math.ceil(left)+' s   Trafienia: '+hits+'   Celność: '+(shots?Math.round(hits/shots*100):0)+'%',16,28);
+      if(over){
+        x.fillStyle='rgba(7,11,22,0.75)';x.fillRect(0,0,W,H);
+        x.fillStyle='#fff';x.textAlign='center';x.font='bold 28px Inter,sans-serif';
+        x.fillText('Trafień: '+hits+' z '+shots+' strzałów',W/2,H/2-6);
+        x.font='15px Inter,sans-serif';x.fillText('Kliknij, aby zacząć od nowa',W/2,H/2+24);x.textAlign='left';
+      }
+      raf=requestAnimationFrame(loop);
+    };
+    raf=requestAnimationFrame(loop);
+    return()=>{cancelAnimationFrame(raf);c.removeEventListener('pointerdown',click);};
+  },[]);
+  return <div><canvas ref={ref} width={640} height={360} className="w-full rounded-xl border border-ink-700 touch-none cursor-crosshair" aria-label="Trening celności: klikaj w cele"/><p className="text-xs text-muted mt-2">Przez 30 sekund klikaj w pojawiające się cele. Im szybciej, tym lepiej.</p></div>;
+}
+function GameLauncher({gid}){
+  const A=useApp();
+  const g=A.db.games.concat(A.db.delisted).find(x=>x.id===gid);
+  const [copied,setCopied]=useState(false);
+  if(!g)return null;
+  const link=g.steam?'steam://rungameid/'+g.steam:'';
+  const copy=()=>{try{navigator.clipboard.writeText(link).then(()=>setCopied(true),()=>setCopied(false));}catch(e){}};
+  const kind=g.id==='geometrydash'?'runner':(g.id==='cs2'||g.id==='apex')?'aim':'none';
+  const entry=A.me.library.find(l=>l.gameId===gid);
+  return <Modal onClose={A.stopPlaying} wide>
+    <div className="p-5 flex flex-col gap-4">
+      <div className="flex items-center gap-3">
+        <span className="h-2.5 w-2.5 rounded-full bg-accent pulse"/>
+        <div className="flex-1 min-w-0"><h3 className="font-display text-lg font-semibold truncate">{g.title}</h3><span className="text-xs text-muted">Zalogowano jako {A.me.username} · czas gry: {entry?fmtH(entry.hours):'0 godz.'}</span></div>
+        <button type="button" className="btn btn-danger btn-sm" onClick={A.stopPlaying}><Icon name="Square" size={13}/>Zakończ grę</button>
+      </div>
+      {kind==='runner'&&<RunnerGame/>}
+      {kind==='aim'&&<AimGame/>}
+      {kind==='none'&&<div className="rounded-xl bg-ink-800 p-5 flex flex-col gap-3">
+        <p className="text-sm">Przeglądarka nie uruchomi pełnej wersji tej gry, bo to program na komputer. Jeśli masz ją w prawdziwym Steam, skopiuj poniższy adres i wklej go w pasek adresu przeglądarki lub w okno „Uruchom”.</p>
+        {link?<div className="flex gap-2"><input id="steam-link" readOnly className="input tnum" value={link} onFocus={e=>e.target.select()}/><button type="button" className="btn btn-soft" onClick={copy}><Icon name={copied?'Check':'Copy'} size={14}/>{copied?'Skopiowano':'Kopiuj'}</button></div>
+        :<p className="text-xs text-muted">Ta gra nie ma powiązanego identyfikatora Steam.</p>}
+      </div>}
+      {kind!=='none'&&<p className="text-xs text-muted">To grywalna, uproszczona wersja w przeglądarce, a nie oryginalny tytuł. Czas gry nalicza się, dopóki to okno jest otwarte.</p>}
+    </div>
+  </Modal>;
+}
+
+/* ============================== SPOŁECZNOŚĆ ============================== */
+function canSee(viewer,target,what){return viewer.id===target.id||target.privacy[what]==='public';}
+function ProfileModal({id}){
+  const A=useApp();const {db,me}=A;
+  const u=db.users.find(x=>x.id===id);
+  if(!u)return null;
+  const isMe=u.id===me.id;
+  const friend=me.friends.includes(u.id);
+  const pub=canSee(me,u,'profile');
+  const libPub=pub&&canSee(me,u,'library');
+  const hours=u.library.reduce((s,l)=>s+l.hours,0);
+  const gr=AV_GRADS[(u.avatar&&u.avatar.g||0)%AV_GRADS.length];
+  const games=u.library.map(l=>({l,g:db.games.concat(db.delisted).find(x=>x.id===l.gameId)})).filter(x=>x.g).sort((a,b)=>b.l.hours-a.l.hours);
+  return <Modal onClose={()=>A.openProfile(null)} wide>
+    <div className="h-24 rounded-t-2xl" style={{background:'linear-gradient(120deg,'+gr[0]+'55,'+gr[1]+'55)'}}/>
+    <div className="px-5 pb-5 -mt-10 flex flex-col gap-4">
+      <div className="flex items-end gap-4">
+        <div className="rounded-full border-4 border-ink-900"><UserAvatar u={u} size={80}/></div>
+        <div className="min-w-0 pb-1 flex-1"><h3 className="font-display text-2xl font-bold flex items-center gap-2 flex-wrap">{u.username}{isCEO(u)&&<CeoBadge/>}</h3><span className="text-sm" style={{color:u.playing?'rgb(var(--accent))':'rgb(var(--muted))'}}>{statusText(u,db)}</span></div>
+        <button type="button" className="p-2 rounded-lg hover:bg-ink-800 self-start mt-10" onClick={()=>A.openProfile(null)} aria-label="Zamknij"><Icon name="X" size={18}/></button>
+      </div>
+      {!pub?<div className="flex items-center gap-3 rounded-xl bg-ink-800 p-4 text-muted"><Icon name="Lock" size={18}/>Ten profil jest prywatny.</div>:<>
+        {u.bio&&<p className="text-txt/85">{u.bio}</p>}
+        <div className="grid grid-cols-3 gap-3">
+          {[['Gry',libPub?u.library.length:'–'],['Godziny',libPub?hours.toFixed(0):'–'],['Znajomi',u.friends.length]].map(s=><div key={s[0]} className="rounded-xl bg-ink-800 p-3 text-center"><div className="font-display text-xl font-bold tnum">{s[1]}</div><div className="text-xs text-muted">{s[0]}</div></div>)}
+        </div>
+        <div className="text-xs text-muted">Na Feast od {fmtDate(u.createdAt)}</div>
+        {libPub?<div><span className="label">Biblioteka</span>
+          {games.length===0?<p className="text-sm text-muted">Brak gier.</p>:<div className="grid grid-cols-2 sm:grid-cols-3 gap-3">{games.slice(0,9).map(x=><div key={x.g.id} className="rounded-lg overflow-hidden border border-ink-700"><div className="relative aspect-[460/215]"><GameCover g={x.g} className="absolute inset-0"/></div><div className="p-2"><div className="text-xs font-semibold truncate">{x.g.title}</div><div className="text-[11px] text-muted">{fmtH(x.l.hours)}</div></div></div>)}</div>}
+        </div>:<div className="flex items-center gap-3 rounded-xl bg-ink-800 p-3 text-sm text-muted"><Icon name="Lock" size={16}/>Biblioteka tego gracza jest prywatna.</div>}
+      </>}
+      {!isMe&&<div className="flex flex-wrap gap-2">
+        {friend?<>
+          <button type="button" className="btn btn-primary" onClick={()=>{A.openProfile(null);A.setChatWith(u.id);A.setRail(true);}}><Icon name="MessageCircle" size={16}/>Napisz wiadomość</button>
+          <button type="button" className="btn btn-danger" onClick={()=>A.removeFriend(u.id)}><Icon name="UserMinus" size={16}/>Usuń ze znajomych</button>
+        </>:<button type="button" className="btn btn-primary" onClick={()=>A.addFriend(u.id)}><Icon name="UserPlus" size={16}/>Dodaj do znajomych</button>}
+      </div>}
+    </div>
+  </Modal>;
+}
+function CommunityView(){
+  const A=useApp();const {db,me}=A;
+  const [q,setQ]=useState('');
+  const hours=me.library.reduce((s,l)=>s+l.hours,0);
+  const people=db.users.filter(u=>u.id!==me.id&&u.username.toLowerCase().includes(q.trim().toLowerCase())).sort((a,b)=>(me.friends.includes(b.id)-me.friends.includes(a.id))||a.username.localeCompare(b.username));
+  const mine=new Set(me.library.map(l=>l.gameId));
+  const gr=AV_GRADS[(me.avatar&&me.avatar.g||0)%AV_GRADS.length];
+  return <div className="page flex flex-col gap-6">
+    <div className="panel overflow-hidden">
+      <div className="h-20" style={{background:'linear-gradient(120deg,'+gr[0]+'66,'+gr[1]+'66)'}}/>
+      <div className="px-5 pb-5 -mt-8 flex flex-wrap items-end gap-4">
+        <div className="rounded-full border-4 border-ink-900"><UserAvatar u={me} size={72}/></div>
+        <div className="flex-1 min-w-[200px] pb-1"><h2 className="font-display text-2xl font-bold flex items-center gap-2 flex-wrap">{me.username}{isCEO(me)&&<CeoBadge/>}</h2><p className="text-sm text-muted">{me.bio||'Dodaj opis profilu w ustawieniach.'}</p></div>
+        <div className="flex gap-6 text-center pb-1">{[['Gry',me.library.length],['Godziny',hours.toFixed(0)],['Znajomi',me.friends.length]].map(s=><div key={s[0]}><div className="font-display text-xl font-bold tnum">{s[1]}</div><div className="text-xs text-muted">{s[0]}</div></div>)}</div>
+        <button type="button" className="btn btn-soft" onClick={()=>A.go('settings')}><Icon name="Pencil" size={15}/>Edytuj profil</button>
+      </div>
+    </div>
+    <div>
+      <SectionTitle right={<div className="relative w-full max-w-xs"><Icon name="Search" size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"/><input id="people-search" className="input pl-9 py-2" placeholder="Szukaj graczy po nicku" value={q} onChange={e=>setQ(e.target.value)}/></div>}>Gracze</SectionTitle>
+      {people.length===0?<Empty icon="UserX" title="Nie znaleziono graczy" text="Spróbuj innego nicku."/>:
+      <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
+        {people.map(u=>{const fr=me.friends.includes(u.id);const common=u.library.filter(l=>mine.has(l.gameId)).length;return <div key={u.id} className="panel p-4 flex flex-col gap-3">
+          <button type="button" className="flex items-center gap-3 text-left" onClick={()=>A.openProfile(u.id)}>
+            <UserAvatar u={u} size={48}/>
+            <span className="min-w-0 flex-1"><Name u={u} className="font-semibold"/><span className="block text-xs text-muted truncate">{statusText(u,db)}</span>{canSee(me,u,'library')&&canSee(me,u,'profile')&&<span className="block text-xs text-muted">{common} wspólnych gier</span>}</span>
+          </button>
+          <div className="flex gap-2">
+            {fr?<button type="button" className="btn btn-soft btn-sm flex-1" onClick={()=>{A.setChatWith(u.id);A.setRail(true);}}><Icon name="MessageCircle" size={14}/>Czat</button>:<button type="button" className="btn btn-primary btn-sm flex-1" onClick={()=>A.addFriend(u.id)}><Icon name="UserPlus" size={14}/>Dodaj</button>}
+            <button type="button" className="btn btn-outline btn-sm" onClick={()=>A.openProfile(u.id)}>Profil</button>
+          </div>
+        </div>;})}
+      </div>}
+    </div>
+  </div>;
+}
+
+/* ============================== USTAWIENIA ============================== */
+function SettingsView(){
+  const A=useApp();const {me,db}=A;
+  const [tab,setTab]=useState('profile');
+  const [nick,setNick]=useState(me.username);
+  const [bio,setBio]=useState(me.bio);
+  const [status,setStatus]=useState(me.status);
+  const [avatar,setAvatar]=useState(me.avatar);
+  const [err,setErr]=useState('');
+  const dirty=nick!==me.username||bio!==me.bio||status!==me.status||JSON.stringify(avatar)!==JSON.stringify(me.avatar);
+  const save=e=>{
+    e.preventDefault();
+    const n=nick.trim();
+    if(n.length<3||n.length>20){setErr('Nick musi mieć od 3 do 20 znaków.');return;}
+    if(db.users.some(u=>u.id!==me.id&&u.username.toLowerCase()===n.toLowerCase())){setErr('Ten nick jest już zajęty.');return;}
+    setErr('');
+    A.updateMe(u=>{u.username=n;u.bio=bio.slice(0,200);u.status=status;u.avatar=avatar;});
+    A.toast('Zapisano profil','ok');
+  };
+  const tabs=[['profile','Profil','User'],['privacy','Prywatność','Lock'],['notif','Powiadomienia','Bell'],['look','Wygląd','Palette'],['orders','Zakupy','Receipt']];
+  return <div className="page grid md:grid-cols-[210px_1fr] gap-5">
+    <nav className="flex md:flex-col gap-1 hscroll md:overflow-visible" aria-label="Sekcje ustawień">
+      {tabs.map(t=><button key={t[0]} type="button" onClick={()=>setTab(t[0])} className={cx('flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm font-semibold whitespace-nowrap transition',tab===t[0]?'bg-accent/15 text-accent':'text-muted hover:text-txt hover:bg-ink-800')}><Icon name={t[2]} size={16}/>{t[1]}</button>)}
+    </nav>
+    <div className="panel p-5 sm:p-6 min-w-0">
+      {tab==='profile'&&<form onSubmit={save} className="flex flex-col gap-5 max-w-xl">
+        <h2 className="font-display text-xl font-semibold">Profil</h2>
+        <div><span className="label">Awatar</span><AvatarPicker value={avatar} onChange={setAvatar}/></div>
+        <div><label className="label" htmlFor="set-nick">Nazwa użytkownika</label><input id="set-nick" className="input" value={nick} onChange={e=>setNick(e.target.value)} maxLength={20}/></div>
+        <div><label className="label" htmlFor="set-bio">Opis profilu</label><textarea id="set-bio" className="input min-h-[96px]" value={bio} onChange={e=>setBio(e.target.value)} maxLength={200} placeholder="Kilka słów o sobie"/><span className="text-xs text-muted">{bio.length}/200</span></div>
+        <div><label className="label" htmlFor="set-status">Status</label><select id="set-status" className="input" value={status} onChange={e=>setStatus(e.target.value)}><option value="online">Online</option><option value="away">Zaraz wracam</option><option value="offline">Offline</option></select>{me.playing&&<span className="text-xs text-muted mt-1 block">Gdy grasz, inni widzą status „W grze”.</span>}</div>
+        <div><span className="label">E-mail</span><div className="flex items-center gap-2 text-sm"><span>{me.email}</span>{isCEO(me)&&<CeoBadge/>}</div></div>
+        {err&&<div className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{err}</div>}
+        <div className="flex gap-3"><button type="submit" className="btn btn-primary" disabled={!dirty}><Icon name="Save" size={15}/>Zapisz zmiany</button>{dirty&&<button type="button" className="btn btn-soft" onClick={()=>{setNick(me.username);setBio(me.bio);setStatus(me.status);setAvatar(me.avatar);setErr('');}}>Cofnij</button>}</div>
+      </form>}
+      {tab==='privacy'&&<div className="max-w-xl flex flex-col gap-5">
+        <h2 className="font-display text-xl font-semibold">Prywatność</h2>
+        {[['profile','Widoczność profilu','Prywatny profil pokazuje innym tylko nick i awatar.'],['library','Widoczność biblioteki','Wybierz, czy inni zobaczą Twoje gry i czas gry.']].map(r=><div key={r[0]}><label className="label" htmlFor={'priv-'+r[0]}>{r[1]}</label><select id={'priv-'+r[0]} className="input" value={me.privacy[r[0]]} onChange={e=>{const v=e.target.value;A.updateMe(u=>{u.privacy[r[0]]=v;});}}><option value="public">Publiczny</option><option value="private">Prywatny</option></select><span className="text-xs text-muted mt-1 block">{r[2]}</span></div>)}
+      </div>}
+      {tab==='notif'&&<div className="max-w-xl">
+        <h2 className="font-display text-xl font-semibold mb-2">Powiadomienia</h2>
+        <div className="divide-y divide-ink-700">
+          <Toggle id="n-msg" on={me.notif.messages} onChange={v=>A.updateMe(u=>{u.notif.messages=v;})} label="Nowe wiadomości" desc="Pokazuj powiadomienie, gdy znajomy odpisze, a czat jest zamknięty."/>
+          <Toggle id="n-fr" on={me.notif.friends} onChange={v=>A.updateMe(u=>{u.notif.friends=v;})} label="Znajomi online" desc="Informuj, gdy ktoś ze znajomych się zaloguje."/>
+          <Toggle id="n-promo" on={me.notif.promos} onChange={v=>A.updateMe(u=>{u.notif.promos=v;})} label="Promocje" desc="Pokazuj aktualne promocje po zalogowaniu."/>
+        </div>
+      </div>}
+      {tab==='look'&&<div className="max-w-xl flex flex-col gap-4">
+        <h2 className="font-display text-xl font-semibold">Wygląd</h2>
+        <span className="label">Kolor akcentu</span>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {Object.keys(ACCENTS).map(k=><button key={k} type="button" aria-pressed={me.accent===k} onClick={()=>A.updateMe(u=>{u.accent=k;})} className={cx('flex items-center gap-3 rounded-xl border p-3 text-left transition',me.accent===k?'border-accent bg-accent/10':'border-ink-700 hover:border-ink-600')}>
+            <span className="h-9 w-9 rounded-full" style={{background:'linear-gradient(135deg,rgb('+ACCENTS[k].a+'),rgb('+ACCENTS[k].b+'))'}}/><span className="font-semibold text-sm">{ACCENTS[k].label}</span>{me.accent===k&&<Icon name="Check" size={15} className="ml-auto text-accent"/>}
+          </button>)}
+        </div>
+      </div>}
+      {tab==='orders'&&<div className="max-w-2xl flex flex-col gap-4">
+        <h2 className="font-display text-xl font-semibold">Historia zakupów</h2>
+        {me.orders.length===0?<p className="text-muted">Nie masz jeszcze żadnych zamówień.</p>:me.orders.map(o=><div key={o.id} className="rounded-xl bg-ink-800 p-4 text-sm flex flex-col gap-2">
+          <div className="flex justify-between gap-3"><span className="font-semibold tnum">{o.id}</span><span className="text-muted">{fmtDate(o.ts)}</span></div>
+          {o.items.map(i=><div key={i.id} className="flex justify-between gap-3"><span className="truncate">{i.title}</span><span className="tnum">{moneyPlain(i.price)}</span></div>)}
+          <div className="flex justify-between border-t border-ink-700 pt-2 font-semibold"><span>Razem ({{blik:'BLIK',card:'Karta',paypal:'PayPal'}[o.method]})</span><span className="tnum">{moneyPlain(o.total)}</span></div>
+        </div>)}
+      </div>}
+    </div>
+  </div>;
+}
+
+/* ============================== PANEL CEO ============================== */
+function GameAdminRow({g}){
+  const A=useApp();
+  const [price,setPrice]=useState(String(g.price));
+  const [disc,setDisc]=useState(String(g.discount||0));
+  const [confirm,setConfirm]=useState(false);
+  useEffect(()=>{setPrice(String(g.price));setDisc(String(g.discount||0));},[g.price,g.discount]);
+  const p=parseNum(price),d=parseNum(disc);
+  const valid=isFinite(p)&&p>=0&&p<=9999&&isFinite(d)&&d>=0&&d<=90;
+  const dirty=valid&&(p!==g.price||d!==(g.discount||0));
+  return <div className="panel p-4 flex flex-col gap-3">
+    <div className="flex items-center gap-3">
+      <div className="relative w-24 aspect-[460/215] rounded-md border border-ink-700 shrink-0"><GameCover g={g} className="absolute inset-0 rounded-md"/></div>
+      <div className="min-w-0 flex-1"><h4 className="font-display font-semibold truncate">{g.title}</h4><div className="text-xs text-muted truncate">{g.dev} · {g.genres.join(', ')}</div></div>
+      <Price g={g}/>
+    </div>
+    <div className="grid grid-cols-2 sm:grid-cols-[1fr_1fr_auto] gap-3 items-end">
+      <div><label className="label" htmlFor={'p-'+g.id}>Cena bazowa (zł)</label><input id={'p-'+g.id} className="input tnum" inputMode="decimal" value={price} onChange={e=>setPrice(e.target.value)}/></div>
+      <div><label className="label" htmlFor={'d-'+g.id}>Zniżka (%)</label><input id={'d-'+g.id} className="input tnum" inputMode="numeric" value={disc} onChange={e=>setDisc(e.target.value)}/></div>
+      <div className="col-span-2 sm:col-span-1 flex gap-2"><button type="button" className="btn btn-primary flex-1" disabled={!dirty} onClick={()=>A.adminSaveGame(g.id,p,d)}><Icon name="Save" size={14}/>Zapisz</button></div>
+    </div>
+    {!valid&&<span className="text-xs text-bad">Cena musi być liczbą od 0 do 9999, a zniżka od 0 do 90.</span>}
+    <div className="flex flex-wrap gap-2">
+      {[10,25,50].map(x=><button key={x} type="button" className="chip" onClick={()=>setDisc(String(x))}>-{x}%</button>)}
+      <button type="button" className="chip" onClick={()=>setDisc('0')}>Bez promocji</button>
+      {g.price>0?<button type="button" className="chip" onClick={()=>{setPrice('0');setDisc('0');}}>Ustaw jako darmową</button>:<button type="button" className="chip" onClick={()=>setPrice('49.99')}>Zmień na płatną (49,99)</button>}
+      <span className="flex-1"/>
+      {confirm?<><span className="text-xs text-bad self-center">Usunąć ze sklepu?</span><button type="button" className="btn btn-danger btn-sm" onClick={()=>A.adminDeleteGame(g.id)}>Tak, usuń</button><button type="button" className="btn btn-soft btn-sm" onClick={()=>setConfirm(false)}>Nie</button></>
+      :<button type="button" className="btn btn-danger btn-sm" onClick={()=>setConfirm(true)}><Icon name="Trash2" size={14}/>Usuń ze sklepu</button>}
+    </div>
+  </div>;
+}
+function AdminUserRow({u}){
+  const A=useApp();const {db}=A;
+  const [open,setOpen]=useState(false);
+  const [gid,setGid]=useState('');
+  const owned=new Set(u.library.map(l=>l.gameId));
+  const grantable=db.games.filter(g=>!owned.has(g.id));
+  return <div className="panel p-4 flex flex-col gap-3">
+    <button type="button" className="flex items-center gap-3 text-left" onClick={()=>setOpen(!open)} aria-expanded={open}>
+      <UserAvatar u={u} size={40}/>
+      <span className="min-w-0 flex-1"><Name u={u} className="font-semibold"/><span className="block text-xs text-muted truncate">{u.bot?'Konto demonstracyjne (bot)':u.email}</span></span>
+      <span className="text-xs text-muted hidden sm:block">{u.library.length} gier · od {fmtDate(u.createdAt)}</span>
+      <Icon name={open?'ChevronUp':'ChevronDown'} size={16} className="text-muted"/>
+    </button>
+    {open&&<div className="flex flex-col gap-4 border-t border-ink-700 pt-4">
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="flex-1 min-w-[200px]"><label className="label" htmlFor={'grant-'+u.id}>Nadaj grę za darmo</label>
+          <select id={'grant-'+u.id} className="input" value={gid} onChange={e=>setGid(e.target.value)}><option value="">Wybierz grę…</option>{grantable.map(g=><option key={g.id} value={g.id}>{g.title}</option>)}</select></div>
+        <button type="button" className="btn btn-primary" disabled={!gid} onClick={()=>{A.adminGrant(u.id,gid);setGid('');}}><Icon name="Gift" size={15}/>Nadaj</button>
+      </div>
+      <div><span className="label">Biblioteka użytkownika ({u.library.length})</span>
+        {u.library.length===0?<p className="text-sm text-muted">Brak gier.</p>:<div className="flex flex-col gap-1.5">
+          {u.library.map(l=>{const g=db.games.concat(db.delisted).find(x=>x.id===l.gameId);return <div key={l.gameId} className="flex items-center gap-3 rounded-lg bg-ink-800 p-2">
+            <div className="relative w-14 aspect-[460/215] rounded shrink-0">{g&&<GameCover g={g} className="absolute inset-0 rounded"/>}</div>
+            <span className="flex-1 min-w-0 text-sm truncate">{g?g.title:l.gameId}</span>
+            <span className="text-xs text-muted hidden sm:block">{l.source==='gift'?'prezent':l.source==='free'?'darmowa':'zakup'}</span>
+            <button type="button" className="btn btn-danger btn-sm" onClick={()=>A.adminRevoke(u.id,l.gameId)}><Icon name="Undo2" size={13}/>Odbierz</button>
+          </div>;})}
+        </div>}
+      </div>
+    </div>}
+  </div>;
+}
+function AdminView(){
+  const A=useApp();const {db,me}=A;
+  const [tab,setTab]=useState('overview');
+  const [uq,setUq]=useState('');
+  const [form,setForm]=useState({title:'',dev:'',desc:'',cat:'Akcja',cover:'',price:''});
+  const [err,setErr]=useState('');
+  if(!isCEO(me))return <Empty icon="ShieldAlert" title="Brak dostępu" text="Ten panel jest dostępny wyłącznie dla CEO platformy."/>;
+  const set=k=>e=>setForm(Object.assign({},form,{[k]:e.target.value}));
+  const price=parseNum(form.price);
+  const add=e=>{
+    e.preventDefault();
+    if(form.title.trim().length<2){setErr('Podaj tytuł gry.');return;}
+    if(db.games.some(g=>g.title.toLowerCase()===form.title.trim().toLowerCase())){setErr('Gra o takim tytule już istnieje.');return;}
+    if(form.desc.trim().length<10){setErr('Opis powinien mieć co najmniej 10 znaków.');return;}
+    if(!isFinite(price)||price<0||price>9999){setErr('Podaj cenę od 0 do 9999 (0 oznacza grę darmową).');return;}
+    setErr('');
+    A.adminAddGame({title:form.title.trim(),dev:form.dev.trim()||'Niezależne studio',desc:form.desc.trim(),cat:form.cat,cover:form.cover.trim(),price});
+    setForm({title:'',dev:'',desc:'',cat:'Akcja',cover:'',price:''});
+  };
+  const real=db.users.filter(u=>!u.bot);
+  const users=db.users.filter(u=>u.username.toLowerCase().includes(uq.trim().toLowerCase())||u.email.toLowerCase().includes(uq.trim().toLowerCase())).sort((a,b)=>(a.bot-b.bot)||a.username.localeCompare(b.username));
+  const revenue=db.users.reduce((s,u)=>s+u.orders.reduce((x,o)=>x+o.total,0),0);
+  const tabs=[['overview','Przegląd','LayoutDashboard'],['games','Gry','Gamepad2'],['users','Użytkownicy','Users']];
+  return <div className="page flex flex-col gap-5">
+    <div className="flex flex-wrap items-center gap-3"><span className="grid place-items-center h-11 w-11 rounded-xl" style={{background:'linear-gradient(135deg,#fde68a,#f59e0b)',color:'#3b2300'}}><Icon name="Crown" size={22}/></span><div><h1 className="font-display text-2xl font-bold">Panel CEO</h1><p className="text-sm text-muted">Zarządzanie sklepem i użytkownikami Feast</p></div></div>
+    <div className="inline-flex self-start p-1 rounded-xl bg-ink-900 border border-ink-700">
+      {tabs.map(t=><button key={t[0]} type="button" onClick={()=>setTab(t[0])} className={cx('flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-sm font-semibold transition',tab===t[0]?'bg-accent text-ink-950':'text-muted hover:text-txt')}><Icon name={t[2]} size={15}/>{t[1]}</button>)}
+    </div>
+    {tab==='overview'&&<div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+      {[['Gry w sklepie',db.games.length,'Gamepad2'],['Zarejestrowane konta',real.length,'Users'],['Gry w bibliotekach',real.reduce((s,u)=>s+u.library.length,0),'Library'],['Przychód (symulacja)',moneyPlain(revenue),'Wallet']].map(s=><div key={s[0]} className="panel p-5 flex items-center gap-4"><span className="grid place-items-center h-11 w-11 rounded-xl bg-accent/12 text-accent"><Icon name={s[2]} size={20}/></span><div><div className="font-display text-2xl font-bold tnum">{s[1]}</div><div className="text-xs text-muted">{s[0]}</div></div></div>)}
+      <div className="panel p-5 col-span-2 xl:col-span-4 text-sm text-muted">Panel działa na danych zapisanych w tej przeglądarce. Zmiany cen, nowe gry i nadane tytuły są widoczne od razu w sklepie i bibliotekach kont.</div>
+    </div>}
+    {tab==='games'&&<div className="grid xl:grid-cols-[400px_1fr] gap-5 items-start">
+      <form onSubmit={add} className="panel p-5 flex flex-col gap-4" noValidate>
+        <h3 className="font-display font-semibold text-lg flex items-center gap-2"><Icon name="PlusCircle" size={18} className="text-accent"/>Dodaj nową grę</h3>
+        <div><label className="label" htmlFor="ng-title">Tytuł</label><input id="ng-title" className="input" value={form.title} onChange={set('title')}/></div>
+        <div><label className="label" htmlFor="ng-dev">Twórca (opcjonalnie)</label><input id="ng-dev" className="input" value={form.dev} onChange={set('dev')}/></div>
+        <div><label className="label" htmlFor="ng-desc">Opis</label><textarea id="ng-desc" className="input min-h-[90px]" value={form.desc} onChange={set('desc')}/></div>
+        <div className="grid grid-cols-2 gap-3">
+          <div><label className="label" htmlFor="ng-cat">Kategoria</label><select id="ng-cat" className="input" value={form.cat} onChange={set('cat')}>{GENRES.map(x=><option key={x}>{x}</option>)}</select></div>
+          <div><label className="label" htmlFor="ng-price">Cena (zł)</label><input id="ng-price" className="input tnum" inputMode="decimal" placeholder="0 = darmowa" value={form.price} onChange={set('price')}/></div>
+        </div>
+        {form.price!==''&&isFinite(price)&&price===0&&<div className="flex items-center gap-2 text-sm text-good"><Icon name="BadgeCheck" size={15}/>Gra zostanie oznaczona jako darmowa (Free-to-Play).</div>}
+        <div><label className="label" htmlFor="ng-cover">Link do okładki (opcjonalnie)</label><input id="ng-cover" className="input" value={form.cover} onChange={set('cover')} placeholder="https://…"/><span className="text-xs text-muted mt-1 block">Bez linku lub gdy obraz się nie załaduje, Feast wygeneruje okładkę z tytułu.</span></div>
+        {err&&<div className="rounded-lg border border-bad/30 bg-bad/10 p-3 text-sm text-bad">{err}</div>}
+        <button type="submit" className="btn btn-primary py-3"><Icon name="Plus" size={16}/>Dodaj do sklepu</button>
+      </form>
+      <div className="flex flex-col gap-3 min-w-0">
+        <h3 className="font-display font-semibold text-lg">Gry w sklepie ({db.games.length})</h3>
+        {db.games.map(g=><GameAdminRow key={g.id} g={g}/>)}
+        {db.delisted.length>0&&<div className="mt-3"><h3 className="font-display font-semibold text-lg mb-3">Wycofane ({db.delisted.length})</h3>
+          <div className="flex flex-col gap-2">{db.delisted.map(g=><div key={g.id} className="panel p-3 flex items-center gap-3"><div className="relative w-16 aspect-[460/215] rounded shrink-0"><GameCover g={g} className="absolute inset-0 rounded"/></div><span className="flex-1 min-w-0 truncate font-semibold">{g.title}</span><button type="button" className="btn btn-soft btn-sm" onClick={()=>A.adminRestoreGame(g.id)}><Icon name="Undo2" size={13}/>Przywróć</button></div>)}</div>
+          <p className="text-xs text-muted mt-2">Gracze, którzy już mają wycofaną grę, zachowują ją w bibliotece.</p></div>}
+      </div>
+    </div>}
+    {tab==='users'&&<div className="flex flex-col gap-4">
+      <div className="relative max-w-md"><Icon name="Search" size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted"/><input id="admin-user-search" className="input pl-9" placeholder="Szukaj po nicku lub e-mailu" value={uq} onChange={e=>setUq(e.target.value)}/></div>
+      <div className="grid gap-3 xl:grid-cols-2 items-start">{users.map(u=><AdminUserRow key={u.id} u={u}/>)}</div>
+      {users.length===0&&<Empty icon="UserX" title="Brak użytkowników" text="Żadne konto nie pasuje do wyszukiwania."/>}
+    </div>}
+  </div>;
+}
+
+/* ============================== GŁÓWNA APLIKACJA ============================== */
+function App(){
+  const [db,setDb]=useState(loadDb);
+  const [sid,setSid]=useState(loadSession);
+  const [view,setView]=useState({name:'store'});
+  const [q,setQ]=useState('');
+  const [toasts,setToasts]=useState([]);
+  const [rail,setRail]=useState(false);
+  const [chatWith,setChatWith]=useState(null);
+  const [profileId,setProfileId]=useState(null);
+  const [achGame,setAchGame]=useState(null);
+  const [typing,setTyping]=useState({});
+  const [launch,setLaunch]=useState(null);
+  const dbRef=useRef(db);dbRef.current=db;
+  const me=db.users.find(u=>u.id===sid&&!u.bot)||null;
+  const meRef=useRef(me);meRef.current=me;
+  const chatRef=useRef(chatWith);chatRef.current=chatWith;
+  const installedRef=useRef({});
+
+  const toast=useCallback((text,kind)=>{
+    const id=uid();
+    setToasts(t=>t.concat([{id,text,kind:kind||'ok'}]).slice(-4));
+    setTimeout(()=>setToasts(t=>t.filter(x=>x.id!==id)),3800);
+  },[]);
+  const mutate=useCallback(fn=>setDb(prev=>{const n=structuredClone(prev);fn(n);return n;}),[]);
+  const updateMe=fn=>{const id=meRef.current&&meRef.current.id;if(!id)return;mutate(d=>{fn(d.users.find(u=>u.id===id),d);});};
+  const go=(name,extra)=>{setView(Object.assign({name},extra||{}));setRail(false);window.scrollTo({top:0});};
+
+  useEffect(()=>{try{localStorage.setItem(KEY,JSON.stringify(db));}catch(e){}},[db]);
+  useEffect(()=>{
+    const h=e=>{if(e.key===KEY&&e.newValue){try{const d=JSON.parse(e.newValue);if(d&&d.games&&d.users)setDb(d);}catch(err){}}};
+    window.addEventListener('storage',h);return()=>window.removeEventListener('storage',h);
+  },[]);
+  useEffect(()=>{
+    const t=ACCENTS[(me&&me.accent)||'cyan']||ACCENTS.cyan;
+    const r=document.documentElement.style;r.setProperty('--accent',t.a);r.setProperty('--accent2',t.b);
+  },[me&&me.accent]);
+
+  /* instalacja: symulowany pasek postępu */
+  useEffect(()=>{
+    if(!me)return;
+    const t=setInterval(()=>{
+      const u=meRef.current;if(!u||!u.library.some(l=>l.installing))return;
+      mutate(d=>{const x=d.users.find(z=>z.id===u.id);if(!x)return;x.library.forEach(l=>{if(l.installing){l.progress=Math.min(100,l.progress+3+Math.random()*9);if(l.progress>=100){l.installing=false;l.installed=true;l.progress=100;}}});});
+    },500);
+    return()=>clearInterval(t);
+  },[me&&me.id]);
+  useEffect(()=>{
+    if(!me){installedRef.current={};return;}
+    const prev=installedRef.current;const next={};
+    me.library.forEach(l=>{next[l.gameId]=l.installed;if(prev[l.gameId]===false&&l.installed){const g=db.games.concat(db.delisted).find(x=>x.id===l.gameId);if(g)toast('Zainstalowano: '+g.title);}});
+    installedRef.current=next;
+  },[me&&me.library]);
+  /* licznik godzin w trakcie gry */
+  useEffect(()=>{
+    if(!me||!me.playing)return;
+    const gid=me.playing,uidv=me.id;
+    const t=setInterval(()=>{mutate(d=>{const x=d.users.find(z=>z.id===uidv);const l=x&&x.library.find(z=>z.gameId===gid);if(l)l.hours=Math.round((l.hours+0.1)*10)/10;});},3000);
+    return()=>clearInterval(t);
+  },[me&&me.id,me&&me.playing]);
+  useEffect(()=>{if(me&&me.playing&&!me.library.some(l=>l.gameId===me.playing&&l.installed))updateMe(u=>{u.playing=null;});},[me&&me.playing,me&&me.library]);
+  /* znajomi zmieniają statusy */
+  useEffect(()=>{
+    if(!me)return;
+    const t=setInterval(()=>{
+      const d=dbRef.current;const m=meRef.current;if(!m)return;
+      const bots=d.users.filter(u=>u.bot);if(!bots.length)return;
+      const b=pick(bots);const ns=pick(['online','away','offline'].filter(s=>s!==b.status));
+      mutate(x=>{const y=x.users.find(z=>z.id===b.id);y.status=ns;y.playing=null;});
+      if(ns==='online'&&m.friends.includes(b.id)&&m.notif.friends)toast(b.username+' jest teraz online','friend');
+    },40000);
+    return()=>clearInterval(t);
+  },[me&&me.id]);
+  /* promocje po zalogowaniu */
+  useEffect(()=>{
+    if(!me||!me.notif.promos)return;
+    const g=dbRef.current.games.filter(x=>x.discount>0&&eff(x)>0).sort((a,b)=>b.discount-a.discount)[0];
+    if(g)setTimeout(()=>toast('Promocja: '+g.title+' -'+g.discount+'% (teraz '+moneyPlain(eff(g))+')'),900);
+  },[me&&me.id]);
+  /* oznaczanie wiadomości jako przeczytane */
+  const openCount=me&&chatWith?(db.chats[chatKey(me.id,chatWith)]||[]).length:0;
+  useEffect(()=>{
+    if(!me||!chatWith)return;
+    const k=chatKey(me.id,chatWith);const list=dbRef.current.chats[k]||[];
+    const last=list.length?list[list.length-1].ts:0;
+    if(last>(me.read[k]||0))updateMe(u=>{u.read[k]=Date.now();});
+  },[chatWith,openCount]);
+
+  /* sesja */
+  const login=id=>{
+    setSid(id);setChatWith(null);setRail(false);setQ('');setView({name:'store'});
+    try{sessionStorage.setItem(SKEY,id);localStorage.setItem(SKEY,id);}catch(e){}
+    window.scrollTo({top:0});
+  };
+  const logout=()=>{
+    setSid(null);setChatWith(null);setRail(false);
+    try{sessionStorage.removeItem(SKEY);localStorage.removeItem(SKEY);}catch(e){}
+  };
+  const tryLogin=(email,pass)=>{
+    const u=dbRef.current.users.find(x=>!x.bot&&x.email.toLowerCase()===email.trim().toLowerCase());
+    if(!u||u.pass!==hashPw(pass))return 'Nieprawidłowy e-mail lub hasło.';
+    login(u.id);return null;
+  };
+  const tryRegister=({email,pass,nick,avatar})=>{
+    const d=dbRef.current;const e=email.trim();const n=nick.trim();
+    if(!/^\S+@\S+\.\S+$/.test(e))return 'Podaj poprawny adres e-mail.';
+    if(n.length<3||n.length>20)return 'Nazwa użytkownika musi mieć od 3 do 20 znaków.';
+    if(pass.length<6)return 'Hasło musi mieć co najmniej 6 znaków.';
+    if(d.users.some(u=>!u.bot&&u.email.toLowerCase()===e.toLowerCase()))return 'Konto z tym adresem e-mail już istnieje.';
+    if(d.users.some(u=>u.username.toLowerCase()===n.toLowerCase()))return 'Ta nazwa użytkownika jest zajęta.';
+    const u=baseUser({email:e,username:n,pass:hashPw(pass),avatar,friends:['b_kasia','b_neon','b_ola']});
+    mutate(x=>{
+      x.users.push(u);
+      u.friends.forEach(fid=>{const b=x.users.find(z=>z.id===fid);if(b&&!b.friends.includes(u.id))b.friends.push(u.id);});
+      x.chats[chatKey(u.id,'b_kasia')]=[{id:uid(),from:'b_kasia',text:'Cześć '+n+'! Witaj w Feast. Daj znać, jak będziesz szukać ekipy do gry.',ts:Date.now()}];
+    });
+    login(u.id);return null;
+  };
+  const tryGoogle=email=>{
+    const e=email.trim();
+    if(!/^\S+@\S+\.\S+$/.test(e))return 'Podaj poprawny adres e-mail Google.';
+    const d=dbRef.current;
+    const ex=d.users.find(u=>!u.bot&&u.email.toLowerCase()===e.toLowerCase());
+    if(ex){
+      if(!ex.google)return 'To konto ma hasło w Feast. Zaloguj się hasłem.';
+      login(ex.id);return null;
+    }
+    let nick=e.split('@')[0].replace(/[^A-Za-z0-9_]/g,'').slice(0,16)||'Gracz';
+    while(d.users.some(u=>u.username.toLowerCase()===nick.toLowerCase()))nick=nick.slice(0,13)+Math.floor(100+Math.random()*900);
+    const u=baseUser({email:e,username:nick,pass:'',google:true,avatar:{k:'icon',g:Math.floor(Math.random()*AV_GRADS.length),i:pick(AV_ICONS)},friends:['b_kasia','b_neon','b_ola']});
+    mutate(x=>{
+      x.users.push(u);
+      u.friends.forEach(fid=>{const b=x.users.find(z=>z.id===fid);if(b&&!b.friends.includes(u.id))b.friends.push(u.id);});
+      x.chats[chatKey(u.id,'b_kasia')]=[{id:uid(),from:'b_kasia',text:'Cześć '+nick+'! Witaj w Feast.',ts:Date.now()}];
+    });
+    login(u.id);return null;
+  };
+  const quick=which=>{
+    const d=dbRef.current;
+    if(which==='demo'){const u=d.users.find(x=>x.email==='demo@feast.app');if(u){login(u.id);return;}}
+    let u=d.users.find(x=>!x.bot&&x.email.toLowerCase()===CEO_EMAIL);
+    if(!u){
+      u=baseUser({email:CEO_EMAIL,username:d.users.some(x=>x.username==='WojtekD')?'WojtekD_CEO':'WojtekD',pass:hashPw('feast123'),avatar:{k:'icon',g:3,i:'Crown'},bio:'CEO platformy Feast.',friends:['b_kasia','b_neon','b_raven']});
+      mutate(x=>{x.users.push(u);u.friends.forEach(fid=>{const b=x.users.find(z=>z.id===fid);if(b)b.friends.push(u.id);});});
+    }
+    login(u.id);
+  };
+  const switchTo=id=>login(id);
+
+  /* sklep */
+  const owns=gid=>!!me&&me.library.some(l=>l.gameId===gid);
+  const addToCart=g=>{updateMe(u=>{if(!u.cart.includes(g.id))u.cart.push(g.id);});toast('Dodano do koszyka: '+g.title);};
+  const removeFromCart=gid=>updateMe(u=>{u.cart=u.cart.filter(x=>x!==gid);});
+  const claimFree=g=>{mutate(d=>{giveGame(d,meRef.current.id,g.id,'free');});toast('Dodano do biblioteki: '+g.title);};
+  const buyNow=g=>{updateMe(u=>{if(!u.cart.includes(g.id))u.cart.push(g.id);});go('checkout');};
+  const quickAct=g=>{
+    if(owns(g.id))go('library');
+    else if(isFree(g))claimFree(g);
+    else if(me.cart.includes(g.id))go('cart');
+    else addToCart(g);
+  };
+  /* biblioteka */
+  const install=gid=>updateMe(u=>{const l=u.library.find(x=>x.gameId===gid);if(l&&!l.installed){l.installing=true;l.progress=0;}});
+  const cancelInstall=gid=>updateMe(u=>{const l=u.library.find(x=>x.gameId===gid);if(l){l.installing=false;l.progress=0;}});
+  const uninstall=gid=>updateMe(u=>{const l=u.library.find(x=>x.gameId===gid);if(l){l.installed=false;l.installing=false;l.progress=0;}if(u.playing===gid)u.playing=null;});
+  const play=gid=>{
+    if(!meRef.current){toast('Zaloguj się, aby grać','error');return;}
+    const g=db.games.concat(db.delisted).find(x=>x.id===gid);
+    updateMe(u=>{u.playing=gid;});
+    const nat=window.feastNative;
+    if(nat&&g&&g.steam){
+      nat.launchSteam(g.steam).then(r=>{
+        if(!r||!r.ok){updateMe(u=>{u.playing=null;});toast('Nie udało się uruchomić gry przez Steam. Czy Steam jest zainstalowany?','error');}
+      }).catch(()=>{updateMe(u=>{u.playing=null;});toast('Nie udało się uruchomić gry przez Steam.','error');});
+      toast('Uruchamianie przez Steam: '+g.title);
+      return;
+    }
+    setLaunch(gid);
+    if(g)toast('Uruchomiono: '+g.title);
+  };
+  const stopPlaying=()=>{updateMe(u=>{u.playing=null;});setLaunch(null);};
+  /* znajomi */
+  const addFriend=fid=>{
+    const t=dbRef.current.users.find(u=>u.id===fid);
+    mutate(d=>{const a=d.users.find(u=>u.id===meRef.current.id);const b=d.users.find(u=>u.id===fid);if(a&&b){if(!a.friends.includes(fid))a.friends.push(fid);if(!b.friends.includes(a.id))b.friends.push(a.id);}});
+    if(t)toast('Dodano do znajomych: '+t.username,'friend');
+  };
+  const removeFriend=fid=>{
+    mutate(d=>{const a=d.users.find(u=>u.id===meRef.current.id);const b=d.users.find(u=>u.id===fid);if(a)a.friends=a.friends.filter(x=>x!==fid);if(b)b.friends=b.friends.filter(x=>x!==a.id);});
+    if(chatRef.current===fid)setChatWith(null);
+  };
+  const unread=fid=>{if(!me)return 0;const k=chatKey(me.id,fid);return (db.chats[k]||[]).filter(m=>m.from!==me.id&&m.ts>(me.read[k]||0)).length;};
+  const sendMessage=(toId,text)=>{
+    const from=meRef.current.id;const k=chatKey(from,toId);
+    mutate(d=>{(d.chats[k]=d.chats[k]||[]).push({id:uid(),from,text,ts:Date.now()});});
+    const bot=dbRef.current.users.find(u=>u.id===toId);
+    if(bot&&bot.bot&&bot.status!=='offline'){
+      setTyping(t=>Object.assign({},t,{[toId]:true}));
+      setTimeout(()=>{
+        const d=dbRef.current;const b=d.users.find(u=>u.id===toId);
+        const gid=(b&&b.playing)||(b&&b.library[0]&&b.library[0].gameId);
+        const gm=d.games.concat(d.delisted).find(x=>x.id===gid);
+        const line=botLine(text,gm?gm.title:'coś nowego');
+        mutate(x=>{(x.chats[k]=x.chats[k]||[]).push({id:uid(),from:toId,text:line,ts:Date.now()});});
+        setTyping(t=>Object.assign({},t,{[toId]:false}));
+        const m=meRef.current;
+        if(m&&m.id===from&&m.notif.messages&&chatRef.current!==toId)toast(b.username+': '+line,'msg');
+      },1100+Math.random()*1800);
+    }
+  };
+  /* panel CEO */
+  const guard=()=>isCEO(meRef.current);
+  const adminAddGame=o=>{
+    if(!guard())return;
+    mutate(d=>{d.games.unshift({id:'g_'+uid(),title:o.title,dev:o.dev,year:new Date().getFullYear(),price:o.price,discount:0,genres:[o.cat],rating:null,players:1000,steam:null,art:null,desc:o.desc,cover:o.cover,addedAt:Date.now()});});
+    toast('Dodano grę do sklepu: '+o.title+(o.price===0?' (darmowa)':''));
+  };
+  const adminSaveGame=(id,price,disc)=>{
+    if(!guard())return;
+    mutate(d=>{const g=d.games.find(x=>x.id===id);if(g){g.price=Math.round(price*100)/100;g.discount=g.price===0?0:Math.round(disc);}});
+    toast('Zapisano ceny');
+  };
+  const adminDeleteGame=id=>{
+    if(!guard())return;
+    mutate(d=>{const g=d.games.find(x=>x.id===id);if(!g)return;d.games=d.games.filter(x=>x.id!==id);d.delisted.push(g);d.users.forEach(u=>{u.cart=u.cart.filter(x=>x!==id);});});
+    toast('Usunięto ze sklepu');
+  };
+  const adminRestoreGame=id=>{
+    if(!guard())return;
+    mutate(d=>{const g=d.delisted.find(x=>x.id===id);if(!g)return;d.delisted=d.delisted.filter(x=>x.id!==id);d.games.push(g);});
+    toast('Przywrócono grę w sklepie');
+  };
+  const adminGrant=(userId,gameId)=>{
+    if(!guard())return;
+    mutate(d=>{giveGame(d,userId,gameId,'gift');});
+    const u=dbRef.current.users.find(x=>x.id===userId);const g=dbRef.current.games.find(x=>x.id===gameId);
+    toast('Nadano '+(g?g.title:'grę')+' użytkownikowi '+(u?u.username:''));
+  };
+  const adminRevoke=(userId,gameId)=>{
+    if(!guard())return;
+    mutate(d=>{takeGame(d,userId,gameId);});
+    toast('Odebrano grę z biblioteki');
+  };
+  const openProfile=id=>setProfileId(id);
+
+  const ctx={db,me,view,q,setQ,go,mutate,updateMe,toast,rail,setRail,chatWith,setChatWith,typing,unread,
+    tryLogin,tryRegister,tryGoogle,switchTo,logout,owns,addToCart,removeFromCart,claimFree,buyNow,quick:quickAct,
+    install,cancelInstall,uninstall,play,stopPlaying,addFriend,removeFriend,sendMessage,openProfile,setAchGame,
+    adminAddGame,adminSaveGame,adminDeleteGame,adminRestoreGame,adminGrant,adminRevoke};
+
+  if(!me){
+    const authCtx=Object.assign({},ctx,{quick:quick});
+    return <Ctx.Provider value={authCtx}><AuthScreen/><Toasts items={toasts}/></Ctx.Provider>;
+  }
+  let content=null;
+  const vn=view.name==='admin'&&!isCEO(me)?'store':view.name;
+  if(vn==='store')content=<StoreView/>;
+  else if(vn==='game')content=<GameView id={view.id}/>;
+  else if(vn==='cart')content=<CartView/>;
+  else if(vn==='checkout')content=<CheckoutView/>;
+  else if(vn==='library')content=<LibraryView/>;
+  else if(vn==='community')content=<CommunityView/>;
+  else if(vn==='settings')content=<SettingsView/>;
+  else if(vn==='admin')content=<AdminView/>;
+  return <Ctx.Provider value={ctx}>
+    <TopBar/>
+    <div className="max-w-[1500px] mx-auto flex gap-5 py-5 items-start">
+      <main className="flex-1 min-w-0">{content}</main>
+      <aside className="hidden lg:block w-[300px] shrink-0 sticky" style={{top:'calc(88px + env(safe-area-inset-top,0px))',height:'calc(100vh - 112px)'}} aria-label="Znajomi"><FriendsRail/></aside>
+    </div>
+    {rail&&<div className="lg:hidden fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/70" onClick={()=>{setChatWith(null);setRail(false);}}/>
+      <div className="absolute right-0 top-0 bottom-0 w-[min(340px,92vw)] page" style={{paddingTop:'env(safe-area-inset-top,0px)',paddingBottom:'env(safe-area-inset-bottom,0px)',background:'rgb(var(--ink-950))'}}><FriendsRail drawer/></div>
+    </div>}
+    {profileId&&<ProfileModal id={profileId}/>}
+    {achGame&&<AchievementsModal gameId={achGame}/>}
+    {launch&&me.playing===launch&&<GameLauncher gid={launch}/>}
+    <Toasts items={toasts}/>
+  </Ctx.Provider>;
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body></html>
